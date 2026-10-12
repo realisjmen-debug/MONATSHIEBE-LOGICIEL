@@ -53,7 +53,6 @@ export default function Home(){
  const expired=subscription?.ends_at&&new Date(subscription.ends_at).getTime()<Date.now();
  const suspended=subscription && !["trial","active"].includes(subscription.status);
  if(suspended||expired)return <div className="center"><ShieldCheck size={42}/><h2>Accès à l’établissement suspendu</h2><p>L’abonnement de <b>{school?.name}</b> est {expired?"arrivé à expiration":"actuellement "+subscription.status}. Contactez le Super Administrateur pour réactiver l’accès.</p><button className="btn" onClick={logout}>Se déconnecter</button></div>;
- const secretaryReadOnly = new Set(["studies","assignments","schedule","reportcards","studentFinance","discipline","school_transport","library","inventory"]);
  const secretaryVisible = new Set(["dashboard","students","parents","enrollments","attendance","sms_notifications","announcements","reportcards","studentFinance","schedule","studies","discipline","audit"]);
  const can=(feature:string,...allowedRoles:string[])=>{
   const ov=profile.permission_overrides||{};
