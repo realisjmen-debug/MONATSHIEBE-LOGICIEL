@@ -53,8 +53,32 @@ export default function Home(){
  const expired=subscription?.ends_at&&new Date(subscription.ends_at).getTime()<Date.now();
  const suspended=subscription && !["trial","active"].includes(subscription.status);
  if(suspended||expired)return <div className="center"><ShieldCheck size={42}/><h2>Accès à l’établissement suspendu</h2><p>L’abonnement de <b>{school?.name}</b> est {expired?"arrivé à expiration":"actuellement "+subscription.status}. Contactez le Super Administrateur pour réactiver l’accès.</p><button className="btn" onClick={logout}>Se déconnecter</button></div>;
- const can=(feature:string,...allowedRoles:string[])=>{const ov=profile.permission_overrides||{};if(role==="promoteur"){if(feature==="staff"||feature==="announcements"||feature==="staff_payroll")return true;return false}if(Object.prototype.hasOwnProperty.call(ov,feature))return ov[feature]===true;return allowedRoles.includes(role)};
- const canView=(feature:string)=>role==="promoteur"||can(feature,"directeur","administrateur","secretaire","discipline","surveillant","etudes","finance","comptable","rh","logisticien","bibliothecaire","transport","gestionnaire","cantine","internat");
+ const secretaryReadOnly = new Set(["studies","assignments","schedule","reportcards","studentFinance","discipline","school_transport","library","inventory"]);
+ const secretaryVisible = new Set(["dashboard","students","parents","enrollments","attendance","sms_notifications","announcements","reportcards","studentFinance","schedule","studies","discipline","audit"]);
+ const can=(feature:string,...allowedRoles:string[])=>{
+  const ov=profile.permission_overrides||{};
+  if(role==="promoteur") return ["staff","announcements","staff_payroll"].includes(feature);
+  if(Object.prototype.hasOwnProperty.call(ov,feature)) return ov[feature]===true;
+  if(role==="secretaire") return ["students","parents","enrollments","attendance","sms_notifications","announcements"].includes(feature);
+  return allowedRoles.includes(role);
+ };
+ const canView=(feature:string)=>{
+  const ov=profile.permission_overrides||{};
+  if(role==="promoteur")return true;
+  if(Object.prototype.hasOwnProperty.call(ov,feature))return ov[feature]===true;
+  if(role==="secretaire")return secretaryVisible.has(feature);
+  if(role==="discipline")return ["dashboard","students","attendance","discipline","schedule","audit"].includes(feature);
+  if(role==="surveillant")return ["dashboard","students","parents","attendance","discipline","schedule"].includes(feature);
+  if(role==="etudes")return ["dashboard","students","parents","studies","assignments","attendance","schedule","grades","reportcards","audit"].includes(feature);
+  if(["finance","comptable"].includes(role))return ["dashboard","students","parents","enrollments","finance","studentFinance","audit"].includes(feature);
+  if(role==="bibliothecaire")return ["dashboard","students","library"].includes(feature);
+  if(role==="logisticien")return ["dashboard","inventory"].includes(feature);
+  if(role==="transport")return ["dashboard","students","school_transport"].includes(feature);
+  if(role==="rh")return ["dashboard","staff","staff_registry","staff_attendance","staff_payroll","audit"].includes(feature);
+  if(["cantine","internat"].includes(role))return ["dashboard","students"].includes(feature);
+  return ["directeur","administrateur","gestionnaire"].includes(role)||allowedFeatureFallback(feature,role);
+ };
+ function allowedFeatureFallback(feature:string, currentRole:string){return ["dashboard","students","parents","enrollments","studies","assignments","attendance","discipline","schedule","grades","reportcards","finance","studentFinance","staff","staff_registry","inventory","sms_notifications","school_transport","staff_attendance","staff_payroll","library","announcements","settings","audit"].includes(feature)&&["directeur","administrateur","gestionnaire"].includes(currentRole)}
  const nav:any[]=[
   ["dashboard","Tableau de bord",LayoutDashboard,!["discipline","surveillant","enseignant"].includes(role)],
   ["students","Élèves",Users,canView("students")],
