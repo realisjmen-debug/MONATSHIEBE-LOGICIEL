@@ -317,9 +317,9 @@ function StudentCard({student,schoolId,onClose}:any){
 function Studies({profile,can}:any){
  const [tab,setTab]=useState("classes"),[rows,setRows]=useState<any[]>([]),[show,setShow]=useState(false),[editId,setEditId]=useState<string|null>(null),[msg,setMsg]=useState("");
  const [form,setForm]=useState<any>({name:"",room:"",capacity:"",section_name:"",option_name:"",first_name:"",last_name:"",phone:"",subject:"",code:"",coefficient:"1",section_group:"Humanités générales",stage:"",option_stage:"",room_type:"Classe"});
- const editable=can("studies","etudes")&&tab!=="teachers";
+ const editable=can("studies","etudes");
  const tabs=[["classes","Classes"],["teachers","Enseignants"],["subjects","Matières"],["options","Options / filières"],["rooms","Salles"]];
- async function load(){const table=tab==="teachers"?"teachers":tab==="subjects"?"subjects":tab==="options"?"school_options":tab==="rooms"?"rooms":"classes";const {data}=await supabase.from(table).select("*").eq("school_id",profile.school_id).order("name");setRows(data||[])}
+ async function load(){const table=tab==="teachers"?"teachers":tab==="subjects"?"subjects":tab==="options"?"school_options":tab==="rooms"?"rooms":"classes";const query=supabase.from(table).select("*").eq("school_id",profile.school_id);const {data,error}=tab==="teachers"?await query.order("last_name").order("first_name"):await query.order("name");if(error){setMsg("Chargement impossible : "+error.message);return}setRows(data||[])}
  useEffect(()=>{load()},[profile.school_id,tab]);
  function reset(){setForm({name:"",room:"",capacity:"",section_name:"",option_name:"",first_name:"",last_name:"",phone:"",subject:"",code:"",coefficient:"1",section_group:"Humanités générales",stage:"",option_stage:"",room_type:"Classe"});setEditId(null);setShow(false)}
  function begin(x:any){setEditId(x.id);setShow(true);setMsg("");setForm({...form,...x,coefficient:String(x.coefficient??1),option_stage:x.stage||"",room_type:x.type||"Classe"})}
