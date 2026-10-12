@@ -499,7 +499,7 @@ function StudentFinance({profile,can}:any){
   setLoading(true);setMsg("");
   const [{data:students,error:se},{data:fees,error:fe},{data:payments,error:pe},{data:enrollments,error:ee},{data:classRows,error:ce}]=await Promise.all([
    supabase.from("students").select("id,matricule,last_name,first_name").eq("school_id",profile.school_id).eq("active",true).order("last_name").order("first_name"),
-   supabase.from("student_fees").select("student_id,fee_id,amount_due,discount,currency,status,fees(name,amount,currency)").eq("school_id",profile.school_id),
+   supabase.from("student_fees").select("student_id,fee_id,amount_due,discount,currency,fees(name,amount,currency)").eq("school_id",profile.school_id),
    supabase.from("payments").select("student_id,amount,currency,status,paid_at").eq("school_id",profile.school_id),
    supabase.from("enrollments").select("student_id,class_id,option_name,status,classes(name,option_name,section_name)").eq("school_id",profile.school_id),
    supabase.from("classes").select("id,name,option_name,section_name").eq("school_id",profile.school_id).order("name")
