@@ -525,7 +525,8 @@ function StudentFinance({profile,can}:any){
    supabase.from("payment_items").select("payment_id,student_id,fee_id,amount,currency").eq("school_id",profile.school_id),
    supabase.from("enrollments").select("student_id,class_id,option_name,status,classes(name,option_name,section_name)").eq("school_id",profile.school_id),
    supabase.from("classes").select("id,name,option_name,section_name").eq("school_id",profile.school_id).order("name"),
-   supabase.from("school_options").select("name,active").eq("school_id",profile.school_id).eq("active",true).order("name")
+   supabase.from("school_options").select("name,active").eq("school_id",profile.school_id).eq("active",true).order("name"),
+   supabase.from("fees").select("id,name,amount,currency,active,required,section_name,option_name").eq("school_id",profile.school_id).eq("active",true).order("name")
   ]);
   if(se||fe||pe||ee||ce||oe||fce){setMsg((se||fe||pe||ee||ce||oe||fce)?.message||"Impossible de charger la situation financière.");setLoading(false);return}
   const due=new Map<string,{fc:number,usd:number}>(),paid=new Map<string,{fc:number,usd:number}>(),enrollmentMap=new Map<string,any>(),classById=new Map<string,any>((classRows||[]).map((x:any)=>[x.id,x]));
