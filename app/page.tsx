@@ -192,7 +192,8 @@ function Students({profile,can}:any){
    supabase.from("students").select("*,student_parents(relationship,is_primary,parents(first_name,last_name,phone))").eq("school_id",profile.school_id),
    supabase.from("enrollments").select("student_id,class_id,option_name,status,classes(name,option_name,section_name)").eq("school_id",profile.school_id),
    supabase.from("classes").select("id,name,option_name,section_name").eq("school_id",profile.school_id).order("name"),
-   supabase.from("school_options").select("name,active").eq("school_id",profile.school_id).eq("active",true).order("name")
+   supabase.from("school_options").select("name,active").eq("school_id",profile.school_id).eq("active",true).order("name"),
+   supabase.from("fees").select("id,name,amount,currency,active,option_name,section_name").eq("school_id",profile.school_id).eq("active",true).order("name")
   ]);
   if(se||ee||ce||oe){setMsg("Chargement impossible : "+(se||ee||ce||oe)?.message);setLoading(false);return}
   const activeEnrollments=(enrollments||[]).filter((x:any)=>!x.status||["active","enrolled","confirmed"].includes(String(x.status).toLowerCase()));
@@ -517,30 +518,30 @@ function StudentFinance({profile,can}:any){
  const [rows,setRows]=useState<any[]>([]),[q,setQ]=useState(""),[classId,setClassId]=useState("all"),[optionName,setOptionName]=useState("all"),[classes,setClasses]=useState<any[]>([]),[optionList,setOptionList]=useState<string[]>([]),[feeName,setFeeName]=useState("all"),[feeNames,setFeeNames]=useState<string[]>([]),[loading,setLoading]=useState(true),[msg,setMsg]=useState("");
  async function load(){
   setLoading(true);setMsg("");
-  const [{data:students,error:se},{data:fees,error:fe},{data:payments,error:pe},{data:paymentItems,error:pie},{data:enrollments,error:ee},{data:classRows,error:ce},{data:optionRows,error:oe}]=await Promise.all([
+  const [{data:students,error:se},{data:fees,error:fe},{data:payments,error:pe},{data:paymentItems,error:pie},{data:enrollments,error:ee},{data:classRows,error:ce},{data:optionRows,error:oe},{data:feeCatalog,error:fce}]=await Promise.all([
    supabase.from("students").select("id,matricule,last_name,first_name").eq("school_id",profile.school_id).eq("active",true).order("last_name").order("first_name"),
-   supabase.from("student_fees").select("student_id,fee_id,amount_due,discount,currency,fees(name,amount,currency)").eq("school_id",profile.school_id),
+   supabase.from("student_fees").select("student_id,fee_id,amount_due,discount,currency").eq("school_id",profile.school_id),
    supabase.from("payments").select("id,student_id,amount,currency,status,paid_at").eq("school_id",profile.school_id),
    supabase.from("payment_items").select("payment_id,student_id,fee_id,amount,currency").eq("school_id",profile.school_id),
    supabase.from("enrollments").select("student_id,class_id,option_name,status,classes(name,option_name,section_name)").eq("school_id",profile.school_id),
    supabase.from("classes").select("id,name,option_name,section_name").eq("school_id",profile.school_id).order("name"),
    supabase.from("school_options").select("name,active").eq("school_id",profile.school_id).eq("active",true).order("name")
   ]);
-  if(se||fe||pe||pie||ee||ce||oe){setMsg((se||fe||pe||pie||ee||ce||oe)?.message||"Impossible de charger la situation financière.");setLoading(false);return}
+  if(se||fe||pe||ee||ce||oe||fce){setMsg((se||fe||pe||ee||ce||oe||fce)?.message||"Impossible de charger la situation financière.");setLoading(false);return}
   const due=new Map<string,{fc:number,usd:number}>(),paid=new Map<string,{fc:number,usd:number}>(),enrollmentMap=new Map<string,any>(),classById=new Map<string,any>((classRows||[]).map((x:any)=>[x.id,x]));
   (enrollments||[]).filter((x:any)=>!x.status||["active","enrolled","confirmed"].includes(String(x.status).toLowerCase())).forEach((x:any)=>{if(!enrollmentMap.has(x.student_id))enrollmentMap.set(x.student_id,x)});
-  (fees||[]).forEach((x:any)=>{const a=due.get(x.student_id)||{fc:0,usd:0};const amount=Math.max(0,Number(x.amount_due??x.fees?.amount??0)-Number(x.discount||0));if((x.currency??x.fees?.currency)==="USD")a.usd+=amount;else a.fc+=amount;due.set(x.student_id,a)});
-  if(!(fees||[]).length){const activeFees=await supabase.from("fees").select("id,amount,currency,active").eq("school_id",profile.school_id).eq("active",true);if(!activeFees.error){const assignedStudents=new Set<string>((fees||[]).map((x:any)=>x.student_id));(students||[]).forEach((s:any)=>{if(assignedStudents.has(s.id))return;const a=due.get(s.id)||{fc:0,usd:0};(activeFees.data||[]).forEach((f:any)=>{if(f.currency==="USD")a.usd+=Number(f.amount||0);else a.fc+=Number(f.amount||0)});due.set(s.id,a)})}}
+  (fees||[]).forEach((x:any)=>{const a=due.get(x.student_id)||{fc:0,usd:0};const amount=Math.max(0,Number(x.amount_due||0)-Number(x.discount||0));if(x.currency==="USD")a.usd+=amount;else a.fc+=amount;due.set(x.student_id,a)});
+  const feeCatalogRows=feeCatalog||[];const assignedStudents=new Set<string>((fees||[]).map((x:any)=>x.student_id));(students||[]).forEach((s:any)=>{if(assignedStudents.has(s.id))return;const a=due.get(s.id)||{fc:0,usd:0};const enrollment=(enrollments||[]).find((e:any)=>e.student_id===s.id);feeCatalogRows.filter((f:any)=>{const option=(enrollment?.option_name||enrollment?.classes?.option_name||"").trim();const section=(enrollment?.classes?.section_name||"").trim();return (!f.option_name||!option||f.option_name===option)&&(!f.section_name||!section||f.section_name===section)}).forEach((f:any)=>{if(f.currency==="USD")a.usd+=Number(f.amount||0);else a.fc+=Number(f.amount||0)});due.set(s.id,a)});
   const validatedPaymentIds=new Set<string>((payments||[]).filter((x:any)=>x.status==="validated").map((x:any)=>x.id));
   const itemRows=(paymentItems||[]).filter((x:any)=>validatedPaymentIds.has(x.payment_id));
   if(itemRows.length){itemRows.forEach((x:any)=>{const a=paid.get(x.student_id)||{fc:0,usd:0};if(x.currency==="USD")a.usd+=Number(x.amount||0);else a.fc+=Number(x.amount||0);paid.set(x.student_id,a)})}else{(payments||[]).filter((x:any)=>x.status==="validated").forEach((x:any)=>{const a=paid.get(x.student_id)||{fc:0,usd:0};if(x.currency==="USD")a.usd+=Number(x.amount||0);else a.fc+=Number(x.amount||0);paid.set(x.student_id,a)})}
   setClasses(classRows||[]);
-  setFeeNames(Array.from(new Set((fees||[]).map((x:any)=>String(x.fees?.name||"").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"})));
+  setFeeNames(Array.from(new Set([...(feeCatalogRows||[]).map((x:any)=>String(x.name||"").trim()),...(fees||[]).map((x:any)=>String(x.fee_id||"").trim())].filter(Boolean))).sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"})));
   const knownOptions=new Set<string>((optionRows||[]).filter((x:any)=>x.name).map((x:any)=>x.name.trim()));
   (enrollments||[]).forEach((x:any)=>{const n=(x.option_name||x.classes?.option_name||"").trim();if(n)knownOptions.add(n)});
   (classRows||[]).forEach((x:any)=>{const n=(x.option_name||"").trim();if(n)knownOptions.add(n)});
   setOptionList(Array.from(knownOptions).sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"})));
-  setRows((students||[]).map((s:any)=>{const d=due.get(s.id)||{fc:0,usd:0},p=paid.get(s.id)||{fc:0,usd:0},en=enrollmentMap.get(s.id);return {...s,class_id:en?.class_id||"",class_name:en?.classes?.name||"Classe non attribuée",feeNames:(fees||[]).filter((x:any)=>x.student_id===s.id).map((x:any)=>x.fees?.name).filter(Boolean).join(" | "),option_name:(en?.option_name||classById.get(en?.class_id)?.option_name||en?.classes?.option_name||"Option à vérifier").trim(),fcDue:d.fc,usdDue:d.usd,fcPaid:p.fc,usdPaid:p.usd,fcBalance:Math.max(0,d.fc-p.fc),usdBalance:Math.max(0,d.usd-p.usd)}}).sort((a:any,b:any)=>a.class_name.localeCompare(b.class_name,"fr",{sensitivity:"base"})||a.option_name.localeCompare(b.option_name,"fr",{sensitivity:"base"})||a.last_name.localeCompare(b.last_name,"fr",{sensitivity:"base"})||a.first_name.localeCompare(b.first_name,"fr",{sensitivity:"base"})));
+  setRows((students||[]).map((s:any)=>{const d=due.get(s.id)||{fc:0,usd:0},p=paid.get(s.id)||{fc:0,usd:0},en=enrollmentMap.get(s.id);return {...s,class_id:en?.class_id||"",class_name:en?.classes?.name||"Classe non attribuée",feeNames:(fees||[]).filter((x:any)=>x.student_id===s.id).map((x:any)=>feeCatalogRows.find((f:any)=>f.id===x.fee_id)?.name).filter(Boolean).concat(feeCatalogRows.filter((f:any)=>!assignedStudents.has(s.id)).map((f:any)=>f.name)).join(" | "),option_name:(en?.option_name||classById.get(en?.class_id)?.option_name||en?.classes?.option_name||"Option à vérifier").trim(),fcDue:d.fc,usdDue:d.usd,fcPaid:p.fc,usdPaid:p.usd,fcBalance:Math.max(0,d.fc-p.fc),usdBalance:Math.max(0,d.usd-p.usd)}}).sort((a:any,b:any)=>a.class_name.localeCompare(b.class_name,"fr",{sensitivity:"base"})||a.option_name.localeCompare(b.option_name,"fr",{sensitivity:"base"})||a.last_name.localeCompare(b.last_name,"fr",{sensitivity:"base"})||a.first_name.localeCompare(b.first_name,"fr",{sensitivity:"base"})));
   setLoading(false);
  }
  useEffect(()=>{load()},[profile.school_id]);
