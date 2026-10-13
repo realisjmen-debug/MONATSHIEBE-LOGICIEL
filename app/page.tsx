@@ -518,7 +518,7 @@ function StudentFinance({profile,can}:any){
  async function load(){
   setLoading(true);setMsg("");
   const [{data:students,error:se},{data:fees,error:fe},{data:payments,error:pe},{data:enrollments,error:ee},{data:classRows,error:ce},{data:optionRows,error:oe}]=await Promise.all([
-   supabase.from("students").select("id,matricule,last_name,first_name").eq("school_id",profile.school_id).eq("active",true).order("last_name").order("first_name"),
+   supabase.from("students").select("id,matricule,last_name,first_name,option_name").eq("school_id",profile.school_id).eq("active",true).order("last_name").order("first_name"),
    supabase.from("student_fees").select("student_id,fee_id,amount_due,discount,currency,fees(name,amount,currency)").eq("school_id",profile.school_id),
    supabase.from("payments").select("student_id,amount,currency,status,paid_at").eq("school_id",profile.school_id),
    supabase.from("enrollments").select("student_id,class_id,option_name,status,classes(name,option_name,section_name)").eq("school_id",profile.school_id),
@@ -536,7 +536,7 @@ function StudentFinance({profile,can}:any){
   (enrollments||[]).forEach((x:any)=>{const n=(x.option_name||x.classes?.option_name||"").trim();if(n)knownOptions.add(n)});
   (classRows||[]).forEach((x:any)=>{const n=(x.option_name||"").trim();if(n)knownOptions.add(n)});
   setOptionList(Array.from(knownOptions).sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"})));
-  setRows((students||[]).map((s:any)=>{const d=due.get(s.id)||{fc:0,usd:0},p=paid.get(s.id)||{fc:0,usd:0},en=enrollmentMap.get(s.id);return {...s,class_id:en?.class_id||"",class_name:en?.classes?.name||"Classe non attribuée",option_name:en?.option_name||classById.get(en?.class_id)?.option_name||classById.get(en?.class_id)?.section_name||en?.classes?.option_name||en?.classes?.section_name||"Option à vérifier",fcDue:d.fc,usdDue:d.usd,fcPaid:p.fc,usdPaid:p.usd,fcBalance:Math.max(0,d.fc-p.fc),usdBalance:Math.max(0,d.usd-p.usd)}}).sort((a:any,b:any)=>a.class_name.localeCompare(b.class_name,"fr",{sensitivity:"base"})||a.option_name.localeCompare(b.option_name,"fr",{sensitivity:"base"})||a.last_name.localeCompare(b.last_name,"fr",{sensitivity:"base"})||a.first_name.localeCompare(b.first_name,"fr",{sensitivity:"base"})));
+  setRows((students||[]).map((s:any)=>{const d=due.get(s.id)||{fc:0,usd:0},p=paid.get(s.id)||{fc:0,usd:0},en=enrollmentMap.get(s.id);return {...s,class_id:en?.class_id||"",class_name:en?.classes?.name||"Classe non attribuée",option_name:(en?.option_name||classById.get(en?.class_id)?.option_name||classById.get(en?.class_id)?.section_name||en?.classes?.option_name||en?.classes?.section_name||s.option_name||"Option à vérifier").trim(),fcDue:d.fc,usdDue:d.usd,fcPaid:p.fc,usdPaid:p.usd,fcBalance:Math.max(0,d.fc-p.fc),usdBalance:Math.max(0,d.usd-p.usd)}}).sort((a:any,b:any)=>a.class_name.localeCompare(b.class_name,"fr",{sensitivity:"base"})||a.option_name.localeCompare(b.option_name,"fr",{sensitivity:"base"})||a.last_name.localeCompare(b.last_name,"fr",{sensitivity:"base"})||a.first_name.localeCompare(b.first_name,"fr",{sensitivity:"base"})));
   setLoading(false);
  }
  useEffect(()=>{load()},[profile.school_id]);
