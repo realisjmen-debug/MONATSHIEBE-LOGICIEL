@@ -55,6 +55,11 @@ export default function Home(){
  if(suspended||expired)return <div className="center"><ShieldCheck size={42}/><h2>Accès à l’établissement suspendu</h2><p>L’abonnement de <b>{school?.name}</b> est {expired?"arrivé à expiration":"actuellement "+subscription.status}. Contactez le Super Administrateur pour réactiver l’accès.</p><button className="btn" onClick={logout}>Se déconnecter</button></div>;
  const secretaryVisible = new Set(["dashboard","students","parents","enrollments","attendance","sms_notifications","announcements","reportcards","studentFinance","schedule","studies","discipline","audit"]);
  const can=(feature:string,...allowedRoles:string[])=>{
+  // L’administrateur d’école n’a aucun droit financier ; il gère la logistique.
+  if(role==="administrateur"&&["finance","studentFinance","staff_payroll"].includes(feature))return false;
+  if(role==="administrateur"&&feature==="inventory")return true;
+  // Le directeur supervise les paramètres mais ne peut pas les modifier.
+  if(role==="directeur"&&feature==="settings")return false;
   const ov=profile.permission_overrides||{};
   if(role==="promoteur") return ["staff","announcements","staff_payroll"].includes(feature);
   // Secretariat defaults take precedence over stale/old overrides so validated access is actually granted.
@@ -63,6 +68,9 @@ export default function Home(){
   return allowedRoles.includes(role);
  };
  const canView=(feature:string)=>{
+  // L’administrateur d’école n’accède pas aux modules financiers ; la logistique lui est ouverte.
+  if(role==="administrateur"&&["finance","studentFinance","staff_payroll"].includes(feature))return false;
+  if(role==="administrateur"&&feature==="inventory")return true;
   // Le directeur peut superviser l’établissement, mais ne peut pas modifier ses paramètres.
   if(role==="directeur"&&feature==="settings")return false;
   const ov=profile.permission_overrides||{};
