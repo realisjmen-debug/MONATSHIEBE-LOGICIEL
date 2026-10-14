@@ -63,6 +63,8 @@ export default function Home(){
   return allowedRoles.includes(role);
  };
  const canView=(feature:string)=>{
+  // Le directeur peut superviser l’établissement, mais ne peut pas modifier ses paramètres.
+  if(role==="directeur"&&feature==="settings")return false;
   const ov=profile.permission_overrides||{};
   if(role==="promoteur")return ["dashboard","students","parents","attendance","schedule","staff","staff_registry","staff_attendance","staff_payroll","library","announcements","audit"].includes(feature);
   // Explicit validated secretariat profile wins over legacy per-user overrides.
