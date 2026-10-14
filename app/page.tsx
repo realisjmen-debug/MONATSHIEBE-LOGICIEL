@@ -197,6 +197,7 @@ function Students({profile,can}:any){
   if(se||ee||ce||oe){setMsg("Chargement impossible : "+(se||ee||ce||oe)?.message);setLoading(false);return}
   const activeEnrollments=(enrollments||[]).filter((x:any)=>!x.status||["active","enrolled","confirmed"].includes(String(x.status).toLowerCase()));
   const enrollmentMap=new Map<string,any>();
+  const classById=new Map<string,any>((classRows||[]).map((x:any)=>[x.id,x]));
   activeEnrollments.forEach((x:any)=>{if(!enrollmentMap.has(x.student_id))enrollmentMap.set(x.student_id,x)});
   setClasses(classRows||[]);
   const names=new Set<string>((optionRows||[]).filter((x:any)=>x.name).map((x:any)=>x.name.trim()));
@@ -532,9 +533,11 @@ function StudentFinance({profile,can}:any){
   (enrollments||[]).filter((x:any)=>!x.status||["active","enrolled","confirmed"].includes(String(x.status).toLowerCase())).forEach((x:any)=>{if(!enrollmentMap.has(x.student_id))enrollmentMap.set(x.student_id,x)});
   (fees||[]).forEach((x:any)=>{const a=due.get(x.student_id)||{fc:0,usd:0};const amount=Math.max(0,Number(x.amount_due||0)-Number(x.discount||0));if(x.currency==="USD")a.usd+=amount;else a.fc+=amount;due.set(x.student_id,a)});
   const feeCatalogRows=feeCatalog||[];const assignedStudents=new Set<string>((fees||[]).map((x:any)=>x.student_id));(students||[]).forEach((s:any)=>{if(assignedStudents.has(s.id))return;const a=due.get(s.id)||{fc:0,usd:0};const enrollment=(enrollments||[]).find((e:any)=>e.student_id===s.id);const option=String(enrollment?.option_name||classById.get(enrollment?.class_id)?.option_name||"").trim();const section=String(classById.get(enrollment?.class_id)?.section_name||"").trim();feeCatalogRows.filter((f:any)=>{const feeOption=String(f.option_name||"").trim(),feeSection=String(f.section_name||"").trim();return (!feeOption||feeOption===option)&&(!feeSection||feeSection===section)}).forEach((f:any)=>{if(String(f.currency||"FC").toUpperCase()==="USD")a.usd+=Number(f.amount||0);else a.fc+=Number(f.amount||0)});due.set(s.id,a)});
-  const validatedPaymentIds=new Set<string>((payments||[]).filter((x:any)=>x.status==="validated").map((x:any)=>x.id));
+  const validatedPayments=(payments||[]).filter((x:any)=>String(x.status||"").toLowerCase()==="validated");
+  const validatedPaymentIds=new Set<string>(validatedPayments.map((x:any)=>x.id));
   const itemRows=(paymentItems||[]).filter((x:any)=>validatedPaymentIds.has(x.payment_id));
-  if(itemRows.length){itemRows.forEach((x:any)=>{const a=paid.get(x.student_id)||{fc:0,usd:0};if(x.currency==="USD")a.usd+=Number(x.amount||0);else a.fc+=Number(x.amount||0);paid.set(x.student_id,a)})}else{(payments||[]).filter((x:any)=>x.status==="validated").forEach((x:any)=>{const a=paid.get(x.student_id)||{fc:0,usd:0};if(x.currency==="USD")a.usd+=Number(x.amount||0);else a.fc+=Number(x.amount||0);paid.set(x.student_id,a)})}
+  const itemsByPayment=new Map<string,any[]>();itemRows.forEach((x:any)=>{const arr=itemsByPayment.get(x.payment_id)||[];arr.push(x);itemsByPayment.set(x.payment_id,arr)});
+  validatedPayments.forEach((p:any)=>{const items=itemsByPayment.get(p.id)||[];if(items.length){items.forEach((x:any)=>{const sid=x.student_id||p.student_id;const a=paid.get(sid)||{fc:0,usd:0};if(String(x.currency||p.currency||"FC").toUpperCase()==="USD")a.usd+=Number(x.amount||0);else a.fc+=Number(x.amount||0);paid.set(sid,a)})}else{const a=paid.get(p.student_id)||{fc:0,usd:0};if(String(p.currency||"FC").toUpperCase()==="USD")a.usd+=Number(p.amount||0);else a.fc+=Number(p.amount||0);paid.set(p.student_id,a)}});
   setClasses(classRows||[]);
   setFeeNames(Array.from(new Set([...(feeCatalogRows||[]).map((x:any)=>String(x.name||"").trim()),...(fees||[]).map((x:any)=>String(x.fee_id||"").trim())].filter(Boolean))).sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"})));
   const knownOptions=new Set<string>((optionRows||[]).filter((x:any)=>x.name).map((x:any)=>x.name.trim()));
