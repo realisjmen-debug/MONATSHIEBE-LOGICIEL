@@ -190,7 +190,7 @@ function Students({profile,can}:any){
   setLoading(true);setMsg("");
   const [{data:students,error:se},{data:enrollments,error:ee},{data:classRows,error:ce},{data:optionRows,error:oe}]=await Promise.all([
    supabase.from("students").select("*,student_parents(relationship,is_primary,parents(first_name,last_name,phone))").eq("school_id",profile.school_id),
-   supabase.from("enrollments").select("student_id,class_id,option_name,status,classes(name,option_name,section_name)").eq("school_id",profile.school_id),
+   supabase.from("enrollments").select("student_id,class_id,option_name,status").eq("school_id",profile.school_id),
    supabase.from("classes").select("id,name,option_name,section_name").eq("school_id",profile.school_id).order("name"),
    supabase.from("school_options").select("name,active").eq("school_id",profile.school_id).eq("active",true).order("name")
   ]);
@@ -203,7 +203,7 @@ function Students({profile,can}:any){
   activeEnrollments.forEach((x:any)=>{const cls=Array.isArray(x.classes)?x.classes[0]:x.classes;const n=String(x.option_name||cls?.option_name||"").trim();if(n)names.add(n)});
   (classRows||[]).forEach((x:any)=>{const n=(x.option_name||"").trim();if(n)names.add(n)});
   setOptions(Array.from(names).sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"})).map(name=>({name})));
-  const prepared=await Promise.all((students||[]).map(async(s:any)=>{const en=enrollmentMap.get(s.id);return {...s,class_id:en?.class_id||"",class_name:en?.classes?.name||"Classe non attribuée",option_name:(en?.option_name||en?.classes?.option_name||s.option_name||"").trim()||"Sans filière",photo_url:s.photo_path?(await signedAsset(s.photo_path))||s.photo_url:s.photo_url}}));
+  const prepared=await Promise.all((students||[]).map(async(s:any)=>{const en=enrollmentMap.get(s.id);return {...s,class_id:en?.class_id||"",class_name:classById.get(en?.class_id)?.name||"Classe non attribuée",option_name:(en?.option_name||en?.classes?.option_name||s.option_name||"").trim()||"Sans filière",photo_url:s.photo_path?(await signedAsset(s.photo_path))||s.photo_url:s.photo_url}}));
   prepared.sort((a:any,b:any)=>a.class_name.localeCompare(b.class_name,"fr",{sensitivity:"base"})||a.option_name.localeCompare(b.option_name,"fr",{sensitivity:"base"})||a.last_name.localeCompare(b.last_name,"fr",{sensitivity:"base"})||a.first_name.localeCompare(b.first_name,"fr",{sensitivity:"base"}));
   setRows(prepared);setLoading(false);
  }
@@ -538,10 +538,10 @@ function StudentFinance({profile,can}:any){
   setClasses(classRows||[]);
   setFeeNames(Array.from(new Set([...(feeCatalogRows||[]).map((x:any)=>String(x.name||"").trim()),...(fees||[]).map((x:any)=>String(x.fee_id||"").trim())].filter(Boolean))).sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"})));
   const knownOptions=new Set<string>((optionRows||[]).filter((x:any)=>x.name).map((x:any)=>x.name.trim()));
-  (enrollments||[]).forEach((x:any)=>{const cls=Array.isArray(x.classes)?x.classes[0]:x.classes;const n=String(x.option_name||cls?.option_name||"").trim();if(n)knownOptions.add(n)});
+  (enrollments||[]).forEach((x:any)=>{const cls=Array.isArray(x.classes)?x.classes[0]:x.classes;const n=String(x.option_name||classById.get(x.class_id)?.option_name||"").trim();if(n)knownOptions.add(n)});
   (classRows||[]).forEach((x:any)=>{const n=(x.option_name||"").trim();if(n)knownOptions.add(n)});
   setOptionList(Array.from(knownOptions).sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"})));
-  setRows((students||[]).map((s:any)=>{const d=due.get(s.id)||{fc:0,usd:0},p=paid.get(s.id)||{fc:0,usd:0},en=enrollmentMap.get(s.id);return {...s,class_id:en?.class_id||"",class_name:en?.classes?.name||"Classe non attribuée",feeNames:(fees||[]).filter((x:any)=>x.student_id===s.id).map((x:any)=>feeCatalogRows.find((f:any)=>f.id===x.fee_id)?.name).filter(Boolean).concat(feeCatalogRows.filter((f:any)=>!assignedStudents.has(s.id)).map((f:any)=>f.name)).join(" | "),option_name:(en?.option_name||(Array.isArray(en?.classes)?en.classes[0]?.option_name:en?.classes?.option_name)||classById.get(en?.class_id)?.option_name||"Option à vérifier").trim(),fcDue:d.fc,usdDue:d.usd,fcPaid:p.fc,usdPaid:p.usd,fcBalance:Math.max(0,d.fc-p.fc),usdBalance:Math.max(0,d.usd-p.usd)}}).sort((a:any,b:any)=>a.class_name.localeCompare(b.class_name,"fr",{sensitivity:"base"})||a.option_name.localeCompare(b.option_name,"fr",{sensitivity:"base"})||a.last_name.localeCompare(b.last_name,"fr",{sensitivity:"base"})||a.first_name.localeCompare(b.first_name,"fr",{sensitivity:"base"})));
+  setRows((students||[]).map((s:any)=>{const d=due.get(s.id)||{fc:0,usd:0},p=paid.get(s.id)||{fc:0,usd:0},en=enrollmentMap.get(s.id);return {...s,class_id:en?.class_id||"",class_name:en?.classes?.name||"Classe non attribuée",feeNames:(fees||[]).filter((x:any)=>x.student_id===s.id).map((x:any)=>feeCatalogRows.find((f:any)=>f.id===x.fee_id)?.name).filter(Boolean).concat(feeCatalogRows.filter((f:any)=>!assignedStudents.has(s.id)).map((f:any)=>f.name)).join(" | "),option_name:(en?.option_name||classById.get(en?.class_id)?.option_name||"Option à vérifier").trim(),fcDue:d.fc,usdDue:d.usd,fcPaid:p.fc,usdPaid:p.usd,fcBalance:Math.max(0,d.fc-p.fc),usdBalance:Math.max(0,d.usd-p.usd)}}).sort((a:any,b:any)=>a.class_name.localeCompare(b.class_name,"fr",{sensitivity:"base"})||a.option_name.localeCompare(b.option_name,"fr",{sensitivity:"base"})||a.last_name.localeCompare(b.last_name,"fr",{sensitivity:"base"})||a.first_name.localeCompare(b.first_name,"fr",{sensitivity:"base"})));
   setLoading(false);
  }
  useEffect(()=>{load()},[profile.school_id]);
@@ -552,7 +552,7 @@ function StudentFinance({profile,can}:any){
 
 function Finance({profile,can}:any){
  const [tab,setTab]=useState("payments"),[payments,setPayments]=useState<any[]>([]),[expenses,setExpenses]=useState<any[]>([]),[fees,setFees]=useState<any[]>([]),[installments,setInstallments]=useState<any[]>([]),[expenseCategories,setExpenseCategories]=useState<any[]>([]),[studentFees,setStudentFees]=useState<any[]>([]),[students,setStudents]=useState<any[]>([]),[show,setShow]=useState(false),[form,setForm]=useState<any>({student_id:"",amount:"",currency:"FC",method:"cash",reference:"",category:"",category_id:"",category_description:"",monthly_budget:"",annual_budget:"",description:"",fee_id:"",fee_name:"",installment_id:""}),[msg,setMsg]=useState(""),[printPayment,setPrintPayment]=useState<any>(null);
- const editable=can("finance","finance","comptable");
+ const editable=can("finance","comptable");
  const feeEditable=can("finance","finance");
  async function load(){const [p,e,f,ins,ec,s,sf]=await Promise.all([
   supabase.from("payments").select("*,students(last_name,first_name,matricule)").eq("school_id",profile.school_id).order("paid_at",{ascending:false}),
