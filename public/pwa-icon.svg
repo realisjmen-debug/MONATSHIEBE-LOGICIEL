@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#4338ca"/>
+  <path d="M112 136h288v38H112zM112 206h288v38H112zM112 276h188v38H112z" fill="#fff" opacity=".92"/>
+  <path d="M338 280l26 26 48-55" fill="none" stroke="#a5f3fc" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"/>
+  <text x="256" y="395" fill="#fff" font-family="Arial,sans-serif" font-size="54" font-weight="700" text-anchor="middle">ML</text>
+</svg>
