@@ -63,7 +63,7 @@ export default function Home(){
   const ov=profile.permission_overrides||{};
   if(role==="promoteur") return ["staff","announcements","staff_payroll"].includes(feature);
   // Secretariat defaults take precedence over stale/old overrides so validated access is actually granted.
-  if(role==="secretaire") return ["students","parents","enrollments","attendance","sms_notifications","announcements"].includes(feature);
+  if(role==="secretaire") return ["students","parents","enrollments","attendance","sms_notifications","announcements","studentFinance"].includes(feature);
   if(Object.prototype.hasOwnProperty.call(ov,feature)) return ov[feature]===true;
   return allowedRoles.includes(role);
  };
