@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "jsr:@supabase/supabase-js@2/cors";
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});
+const classLabel=(c:any)=>{const name=String(c?.name||"Classe").trim(),section=String(c?.section_name||"").trim(),option=String(c?.option_name||"").trim();const parts=[name];if(section&&!name.toLocaleLowerCase("fr").includes(section.toLocaleLowerCase("fr"))&&!section.toLocaleLowerCase("fr").replace(/s$/,"").includes(name.toLocaleLowerCase("fr").replace(/s$/,"")))parts.push(section);if(option&&!name.toLocaleLowerCase("fr").includes(option.toLocaleLowerCase("fr")))parts.push(option);return [...new Set(parts)].join(" — ");};
 Deno.serve(async(req)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:corsHeaders});
  try{
@@ -20,11 +21,11 @@ Deno.serve(async(req)=>{
   const {data:teacher,error:te}=await db.from("teachers").select("id,school_id,matricule,last_name,first_name,post_name,email,phone,photo_url,access_code").eq("school_id",school.id).eq("access_code",code).eq("active",true).maybeSingle();
   if(te)return json({error:"Lecture impossible: "+te.message},500);
   if(!teacher)return json({error:"Code enseignant invalide ou désactivé."},404);
-  const {data:assignments}=await db.from("teacher_subject_assignments").select("id,class_id,subject_id,academic_year_id,classes(id,name),subjects(id,name,coefficient)").eq("school_id",school.id).eq("teacher_id",teacher.id).eq("active",true);
+  const {data:assignments}=await db.from("teacher_subject_assignments").select("id,class_id,subject_id,academic_year_id,classes(id,name,section_name,option_name),subjects(id,name,coefficient)").eq("school_id",school.id).eq("teacher_id",teacher.id).eq("active",true);
   if(action==="login"){
    const classIds=[...new Set((assignments||[]).map((a:any)=>a.class_id).filter(Boolean))];
    const [{data:timetable,error:timeError},{data:enrollmentRows,error:enrollError}]=await Promise.all([
-    db.from("schedules").select("id,weekday,start_time,end_time,room,class_id,subject_id,classes(name),subjects(name)").eq("school_id",school.id).eq("teacher_id",teacher.id).order("weekday").order("start_time"),
+    db.from("schedules").select("id,weekday,start_time,end_time,room,class_id,subject_id,classes(name,section_name,option_name),subjects(name)").eq("school_id",school.id).eq("teacher_id",teacher.id).order("weekday").order("start_time"),
     classIds.length?db.from("enrollments").select("student_id,class_id,status").eq("school_id",school.id).in("status",["active","enrolled","confirmed"]).in("class_id",classIds):Promise.resolve({data:[],error:null})
    ]);
    if(timeError)return json({error:"Chargement de l'emploi du temps impossible: "+timeError.message},500);
@@ -33,8 +34,10 @@ Deno.serve(async(req)=>{
    const {data:studentRows,error:studentError}=studentIds.length?await db.from("students").select("id,matricule,last_name,first_name").eq("school_id",school.id).in("id",studentIds):{data:[],error:null};
    if(studentError)return json({error:"Chargement des fiches élèves impossible: "+studentError.message},500);
    const studentById=new Map((studentRows||[]).map((x:any)=>[x.id,x]));
-   const studentsByClass=classIds.map((classId:string)=>{const assignment=(assignments||[]).find((a:any)=>a.class_id===classId);const rows=(enrollmentRows||[]).filter((x:any)=>x.class_id===classId).map((x:any)=>studentById.get(x.student_id)).filter(Boolean);return {class_id:classId,class_name:assignment?.classes?.name||"Classe",student_count:rows.length,students:rows.sort((a:any,b:any)=>(a.last_name||"").localeCompare(b.last_name||""))};});
-   return json({success:true,school,teacher:{id:teacher.id,matricule:teacher.matricule,last_name:teacher.last_name,first_name:teacher.first_name,post_name:teacher.post_name},assignments:assignments||[],timetable:timetable||[],students_by_class:studentsByClass});
+   const studentsByClass=classIds.map((classId:string)=>{const assignment=(assignments||[]).find((a:any)=>a.class_id===classId);const rows=(enrollmentRows||[]).filter((x:any)=>x.class_id===classId).map((x:any)=>studentById.get(x.student_id)).filter(Boolean);return {class_id:classId,class_name:classLabel(assignment?.classes),student_count:rows.length,students:rows.sort((a:any,b:any)=>(a.last_name||"").localeCompare(b.last_name||""))};});
+   const enrichedAssignments=(assignments||[]).map((a:any)=>({...a,classes:a.classes?{...a.classes,display_name:classLabel(a.classes)}:a.classes}));
+   const enrichedTimetable=(timetable||[]).map((t:any)=>({...t,classes:t.classes?{...t.classes,display_name:classLabel(t.classes)}:t.classes}));
+   return json({success:true,school,teacher:{id:teacher.id,matricule:teacher.matricule,last_name:teacher.last_name,first_name:teacher.first_name,post_name:teacher.post_name},assignments:enrichedAssignments,timetable:enrichedTimetable,students_by_class:studentsByClass});
   }
   if(action==="create_assessment"){
    const classId=String(body.class_id||""),subjectId=String(body.subject_id||"");
@@ -45,7 +48,7 @@ Deno.serve(async(req)=>{
    return json({success:true,assessment:data});
   }
   if(action==="list_assessments"){
-   const pairs=(assignments||[]).map((a:any)=>({class_id:a.class_id,subject_id:a.subject_id,className:a.classes?.name,subjectName:a.subjects?.name}));
+   const pairs=(assignments||[]).map((a:any)=>({class_id:a.class_id,subject_id:a.subject_id,className:classLabel(a.classes),subjectName:a.subjects?.name}));
    const {data}=await db.from("assessments").select("id,title,assessment_date,max_score,term,assessment_type,class_id,subject_id").eq("school_id",school.id).order("assessment_date",{ascending:false}).limit(100);
    return json({success:true,assessments:(data||[]).filter((a:any)=>pairs.some((p:any)=>p.class_id===a.class_id&&p.subject_id===a.subject_id)).map((a:any)=>({...a,...(pairs.find((p:any)=>p.class_id===a.class_id&&p.subject_id===a.subject_id)||{})}))});
   }
