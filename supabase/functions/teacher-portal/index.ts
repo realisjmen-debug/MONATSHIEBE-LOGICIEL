@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "jsr:@supabase/supabase-js@2/cors";
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});
-const classLabel=(c:any)=>{const name=String(c?.name||"Classe").trim(),section=String(c?.section_name||"").trim(),option=String(c?.option_name||"").trim();const parts=[name];if(section&&!name.toLocaleLowerCase("fr").includes(section.toLocaleLowerCase("fr"))&&!section.toLocaleLowerCase("fr").replace(/s$/,"").includes(name.toLocaleLowerCase("fr").replace(/s$/,"")))parts.push(section);if(option&&!name.toLocaleLowerCase("fr").includes(option.toLocaleLowerCase("fr")))parts.push(option);return [...new Set(parts)].join(" — ");};
+const classLabel=(c:any)=>{const name=String(c?.name||"Classe").trim(),section=String(c?.section_name||"").trim(),option=String(c?.option_name||"").trim();const lower=name.toLocaleLowerCase("fr"),sectionLower=section.toLocaleLowerCase("fr"),sectionCore=sectionLower.replace(/s$/,""),optionLower=option.toLocaleLowerCase("fr");const parts=[name];if(section&& !lower.includes(sectionLower)&&!lower.includes(sectionCore)&&!sectionLower.includes(lower))parts.push(section);if(option&&!lower.includes(optionLower))parts.push(option);return [...new Set(parts)].join(" — ");};
 Deno.serve(async(req)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:corsHeaders});
  try{
