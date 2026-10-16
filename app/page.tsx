@@ -512,7 +512,7 @@ function TeacherAssignments({profile,can}:any){
     <tbody>
      {rows.map(x=><tr key={x.id}>
       <td>{x.teachers?.last_name} {x.teachers?.first_name}</td>
-      <td>{x.classes?.name ? classDisplayName(r.classes) : "—"}</td>
+      <td>{x.classes?.name ? classDisplayName(x.classes) : "—"}</td>
       <td>{x.subjects?.name}</td>
       <td>{x.academic_years?.name||"—"}</td>
       <td><code>{x.teachers?.access_code||"—"}</code></td>
