@@ -163,3 +163,94 @@ html[data-theme="dark"] .content td{border-bottom-color:var(--ui-border)}
 html[data-theme="dark"] .content input,html[data-theme="dark"] .content select,html[data-theme="dark"] .content textarea{background:var(--ui-surface);color:var(--ui-text);border-color:var(--ui-border)}
 html[data-theme="dark"] .content .btn.light{background:var(--ui-surface-muted);color:var(--ui-text)}
 @media(max-width:950px){.topContext{display:none}.themeToggle{width:38px;height:38px}}
+
+
+/* === Refonte visuelle visible · espace établissement === */
+:root{
+ --ui-brand:#4338ca;--ui-brand-hover:#3730a3;--ui-brand-soft:#eef2ff;
+ --ui-canvas:#f5f6fc;--ui-surface:#fff;--ui-text:#172033;--ui-text-muted:#65738a;--ui-border:#e3e7f0;
+ --ui-radius-sm:10px;--ui-radius-md:14px;--ui-radius-lg:18px;
+}
+body{background:var(--ui-canvas);color:var(--ui-text)}
+.app{background:var(--ui-canvas)}
+.side{background:linear-gradient(165deg,var(--school-primary,#3730a3) 0%,#25205f 58%,#17143f 100%);padding:20px 14px 16px;box-shadow:8px 0 32px rgba(31,27,87,.08)}
+.brand{padding:8px 7px 20px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,.13);gap:12px}
+.brand .logo{border-radius:14px;box-shadow:0 4px 14px rgba(0,0,0,.12);color:#3730a3}
+.brand b{font-size:12px;letter-spacing:.015em}
+.side nav{gap:5px;padding:4px 1px}
+.side nav button,.logout{min-height:42px;border-radius:11px;padding:11px 12px;font-size:13px;font-weight:600;transition:background .16s ease,color .16s ease,transform .16s ease}
+.side nav button:hover{background:rgba(255,255,255,.12);color:#fff;transform:translateX(2px)}
+.side nav .navActive{background:var(--school-secondary,#6366f1);color:#fff;box-shadow:0 5px 14px rgba(0,0,0,.13)}
+.sideBottom{border-top-color:rgba(255,255,255,.15);padding-top:16px}
+.logout{border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.07)}
+.logout:hover{background:rgba(255,255,255,.14)}
+.main{min-width:0}
+.top{height:72px;padding:0 28px;gap:16px;border-bottom:1px solid #e6e8f2;background:rgba(255,255,255,.94);backdrop-filter:blur(12px)}
+.searchBox{max-width:560px;border-color:#e2e5f0;background:#f7f8fc;border-radius:12px;padding:10px 14px}
+.searchBox:focus-within{border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.searchBox input{font-size:13px}
+.topContext{margin-left:auto;max-width:230px}
+.topContext small{font-size:10px;letter-spacing:.04em;text-transform:uppercase}
+.topContext b{font-size:13px;font-weight:750}
+.topUser{margin-left:0;padding:9px 12px;background:#f0efff;color:#3730a3;border-radius:10px;font-size:12px}
+.themeToggle{border-radius:12px;border-color:#e1e4ef;color:#4f46e5;background:#fff}
+.content{padding:30px clamp(18px,2.5vw,38px) 40px;max-width:1660px}
+.head{margin-bottom:24px;align-items:flex-start}
+.head h1{font-size:clamp(25px,2.1vw,32px);font-weight:800;letter-spacing:-.045em;color:#172033}
+.head p{font-size:13px;line-height:1.65;color:#6b7890;margin-top:8px}
+.cards{gap:16px}
+.stat,.panel{border:1px solid #e5e8f1;border-radius:18px;background:#fff;box-shadow:0 3px 10px rgba(28,35,76,.025);transition:box-shadow .18s ease,border-color .18s ease}
+.stat:hover{border-color:#d6d7fa;box-shadow:0 10px 26px rgba(49,46,129,.07)}
+.stat{position:relative;overflow:hidden;padding:21px;min-width:0}
+.stat:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,var(--school-primary,#4338ca),var(--school-secondary,#818cf8));opacity:.9}
+.stat .icon{width:44px;height:44px;border-radius:14px;background:#eef0ff;color:#4f46e5;margin-bottom:18px}
+.stat small{font-size:12px;font-weight:600;line-height:1.45;color:#68758b}
+.stat b{font-size:clamp(22px,2vw,28px);letter-spacing:-.04em;color:#19223a;margin-top:7px;overflow-wrap:anywhere}
+.panel{padding:22px;margin-top:18px}
+.panel h3{font-size:16px;font-weight:800;letter-spacing:-.02em;color:#1b2540;margin-bottom:13px}
+.panel h4{font-size:14px;font-weight:750;color:#34415a}
+.financeSummary{gap:12px}
+.financeSummary div{padding:16px;border:1px solid #e9eaf4;border-radius:13px;background:#fafaff}
+.financeSummary small{font-size:11px;letter-spacing:.015em}
+.financeSummary b{font-size:16px;color:#22264d;overflow-wrap:anywhere}
+.quick span{border-color:#e7e8f3;background:#fff}
+.btn{border-radius:11px;background:var(--school-primary,#4338ca);box-shadow:0 2px 5px rgba(67,56,202,.12);transition:filter .15s,transform .15s,box-shadow .15s}
+.btn:hover{filter:brightness(1.04);box-shadow:0 5px 12px rgba(67,56,202,.15);transform:translateY(-1px)}
+.btn.light{background:#f0f1ff;color:#4338ca;box-shadow:none}
+.btn.light:hover{background:#e5e7ff}
+.formGrid{gap:18px;padding:22px}
+.formGrid label,.loginCard label{font-size:13px;color:#34415a}
+.formGrid input,.formGrid select,.formGrid textarea,.loginCard input{border-radius:11px;border-color:#dfe3ef;padding:12px 13px;transition:border-color .15s,box-shadow .15s}
+.formGrid input:focus,.formGrid select:focus,.formGrid textarea:focus{border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,.11);outline:none}
+.tableWrap{padding:0;overflow:auto}
+table{min-width:650px}
+th{padding:14px 16px;background:#f7f7fd;color:#69738c;font-size:10px;letter-spacing:.08em}
+td{padding:14px 16px;font-size:13px;color:#364258}
+tbody tr:hover{background:#fafaff}
+.tabs{gap:7px;flex-wrap:wrap}
+.tab{border-color:#e2e5ef;background:#fff;border-radius:10px;padding:10px 14px;font-size:12px}
+.tab.active{background:#4338ca;border-color:#4338ca;box-shadow:0 3px 8px rgba(67,56,202,.16)}
+.badge{background:#e9f8ef;color:#13764d}
+.login{background:radial-gradient(ellipse at 18% 10%,rgba(129,140,248,.45),transparent 36%),linear-gradient(135deg,#1e1b4b,#3730a3 58%,#4338ca)}
+.loginCard{border-radius:24px;border:1px solid rgba(255,255,255,.65);box-shadow:0 28px 90px rgba(16,15,61,.25)}
+.loginCard .btn,.authButton{background:#4338ca}
+html[data-theme="dark"] body,html[data-theme="dark"] .app{background:var(--ui-canvas);color:var(--ui-text)}
+html[data-theme="dark"] .side{background:linear-gradient(165deg,#211d50 0%,#17143f 100%)}
+html[data-theme="dark"] .top{background:rgba(17,27,44,.94);border-bottom-color:var(--ui-border)}
+html[data-theme="dark"] .topUser{background:#29254f;color:#c7d2fe}
+html[data-theme="dark"] .head h1,html[data-theme="dark"] .panel h3,html[data-theme="dark"] .panel h4,html[data-theme="dark"] .stat b{color:var(--ui-text)}
+html[data-theme="dark"] .stat,html[data-theme="dark"] .panel,html[data-theme="dark"] .quick span{background:var(--ui-surface);border-color:var(--ui-border);box-shadow:none}
+html[data-theme="dark"] .stat .icon{background:#28254e;color:#c7d2fe}
+html[data-theme="dark"] .stat small,html[data-theme="dark"] .head p{color:var(--ui-text-muted)}
+html[data-theme="dark"] .financeSummary div{background:var(--ui-surface-muted);border-color:var(--ui-border)}
+html[data-theme="dark"] .financeSummary b,html[data-theme="dark"] td{color:var(--ui-text)}
+html[data-theme="dark"] th{background:var(--ui-surface-muted);color:var(--ui-text-muted)}
+html[data-theme="dark"] tbody tr:hover{background:#172337}
+html[data-theme="dark"] .formGrid label{color:var(--ui-text)}
+html[data-theme="dark"] .formGrid input,html[data-theme="dark"] .formGrid select,html[data-theme="dark"] .formGrid textarea{background:var(--ui-surface-muted);color:var(--ui-text);border-color:var(--ui-border)}
+html[data-theme="dark"] .btn.light,html[data-theme="dark"] .tab{background:var(--ui-surface-muted);color:var(--ui-text);border-color:var(--ui-border)}
+html[data-theme="dark"] .tab.active{background:#4338ca;color:#fff;border-color:#4338ca}
+@media(max-width:950px){.top{padding:0 16px}.content{padding:22px 16px 32px}.topContext{display:none}.topUser{display:none}.cards{gap:12px}.stat{padding:17px}}
+@media(max-width:600px){.content{padding:16px 12px 26px}.head{margin-bottom:18px}.head h1{font-size:25px}.stat{padding:15px;border-radius:15px}.stat .icon{margin-bottom:13px}.panel{padding:16px;border-radius:15px}.top{height:62px}.searchBox{padding:9px 10px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.stat b{font-size:21px}.financeSummary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:390px){.cards{grid-template-columns:1fr}.financeSummary{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.side nav button,.stat,.btn{transition:none}}
