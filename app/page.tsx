@@ -198,7 +198,7 @@ function Dashboard({profile,school,role}:any){
  </div>;
 }
 
-function Students({profile,can}:any){
+function Students({profile,can,initialSearch=""}:any){
  const [rows,setRows]=useState<any[]>([]),[q,setQ]=useState(""),[classId,setClassId]=useState("all"),[optionName,setOptionName]=useState("all"),[classes,setClasses]=useState<any[]>([]),[options,setOptions]=useState<any[]>([]),[card,setCard]=useState<any>(null),[photoBusy,setPhotoBusy]=useState<string|null>(null),[msg,setMsg]=useState(""),[loading,setLoading]=useState(true);
  async function load(){
   setLoading(true);setMsg("");
@@ -223,6 +223,7 @@ function Students({profile,can}:any){
   setRows(prepared);setLoading(false);
  }
  useEffect(()=>{load()},[profile.school_id]);
+ useEffect(()=>{if(initialSearch)setQ(initialSearch)},[initialSearch]);
  const filtered=useMemo(()=>rows.filter(x=>(classId==="all"||x.class_id===classId)&&(optionName==="all"||x.option_name===optionName)&&((x.matricule||"")+" "+(x.first_name||"")+" "+(x.last_name||"")+" "+(x.post_name||"")+" "+(x.phone||"")).toLowerCase().includes(q.toLowerCase())).sort((a:any,b:any)=>a.class_name.localeCompare(b.class_name,"fr",{sensitivity:"base"})||a.option_name.localeCompare(b.option_name,"fr",{sensitivity:"base"})||a.last_name.localeCompare(b.last_name,"fr",{sensitivity:"base"})||a.first_name.localeCompare(b.first_name,"fr",{sensitivity:"base"})),[rows,q,classId,optionName]);
  async function uploadPhoto(student:any,file:File){setPhotoBusy(student.id);setMsg("");const ext=(file.name.split(".").pop()||"jpg").toLowerCase();const path=`${profile.school_id}/students/${crypto.randomUUID()}.${ext}`;const {error:ue}=await supabase.storage.from("school-assets").upload(path,file,{upsert:false,contentType:file.type||"image/jpeg"});if(ue){setMsg("Photo non envoyée : "+ue.message);setPhotoBusy(null);return}const {error}=await supabase.from("students").update({photo_path:path,photo_url:null}).eq("id",student.id).eq("school_id",profile.school_id);if(error)setMsg("Photo envoyée mais dossier non mis à jour : "+error.message);else await load();setPhotoBusy(null)}
  const assignedCount=rows.filter((s:any)=>Boolean(s.class_id)).length;
