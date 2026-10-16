@@ -75,7 +75,7 @@ export default function Home(){
   // Le directeur peut superviser l’établissement, mais ne peut pas modifier ses paramètres.
   if(role==="directeur"&&feature==="settings")return false;
   const ov=profile.permission_overrides||{};
-  if(role==="promoteur")return ["dashboard","students","parents","attendance","schedule","staff","staff_registry","staff_attendance","staff_payroll","library","announcements","audit"].includes(feature);
+  if(role==="promoteur")return ["dashboard","students","parents","attendance","schedule","studentFinance","staff","staff_registry","staff_attendance","staff_payroll","library","announcements","audit"].includes(feature);
   // Explicit validated secretariat profile wins over legacy per-user overrides.
   if(role==="secretaire")return secretaryVisible.has(feature);
   if(Object.prototype.hasOwnProperty.call(ov,feature))return ov[feature]===true;
