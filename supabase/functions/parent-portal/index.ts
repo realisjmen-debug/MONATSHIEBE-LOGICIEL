@@ -23,7 +23,7 @@ Deno.serve(async(req)=>{
   if(s.photo_path){const {data:x}=await db.storage.from("school-assets").createSignedUrl(s.photo_path,3600);photoUrl=x?.signedUrl||photoUrl}
   const [{data:enrollments,error:enrollmentError},{data:payments,error:paymentsError},{data:studentFees,error:studentFeesError},{data:feeInstallments,error:installmentsError},{data:feeCatalog,error:feeCatalogError},{data:parents},{data:announcements},{data:attendance},{data:grades},{data:reportCards},{data:notifications}]=await Promise.all([
    db.from("enrollments").select("registration_number,status,registered_at,class_id,option_name,classes(name,option_name,section_name),academic_years(name,is_current)").eq("student_id",s.id).order("registered_at",{ascending:false}).limit(5),
-   db.from("payments").select("id,receipt_number,amount,currency,method,status,paid_at,note,student_fee_id,payment_items(id,description,amount,currency,fee_id,installment_id)").eq("student_id",s.id).order("paid_at",{ascending:false}).limit(100),
+   db.from("payments").select("id,receipt_number,amount,currency,method,status,paid_at,note,student_fee_id").eq("student_id",s.id).order("paid_at",{ascending:false}).limit(100),
    db.from("student_fees").select("id,fee_id,amount_due,discount,currency,fees(name,frequency,currency)").eq("school_id",s.school_id).eq("student_id",s.id).order("id",{ascending:false}).limit(100),
    db.from("fee_installments").select("id,fee_id,name,installment_number,due_date,amount,currency").eq("school_id",s.school_id).eq("active",true).order("installment_number"),
    db.from("fees").select("id,name,amount,currency,active,required,option_name,section_name").eq("school_id",s.school_id).eq("active",true).order("name"),
