@@ -22,7 +22,8 @@ export default function PWAInstall({ school }: { school?: any }) {
     manifestUrl.searchParams.set("short_name", shortName);
     manifestUrl.searchParams.set("theme_color", themeColor);
     manifestUrl.searchParams.set("start_url", startUrl);
-    if (school?.logo_url) manifestUrl.searchParams.set("icon", String(school.logo_url));
+    if (slug) manifestUrl.searchParams.set("school", slug);
+    else if (school?.logo_url) manifestUrl.searchParams.set("icon", String(school.logo_url));
     let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
     if (!link) {
       link = document.createElement("link");
