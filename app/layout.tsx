@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "MONATSHIEBE LOGICIEL",
   description: "Plateforme de gestion scolaire MONATSHIEBE LOGICIEL",
   applicationName: "MONATSHIEBE Logiciel Scolaire",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
