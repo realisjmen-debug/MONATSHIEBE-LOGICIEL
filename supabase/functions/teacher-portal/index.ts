@@ -54,10 +54,23 @@ Deno.serve(async(req)=>{
    const {data:a}=await db.from("assessments").select("id,class_id,subject_id,title,max_score").eq("id",assessmentId).eq("school_id",school.id).maybeSingle();
    if(!a)return json({error:"Évaluation introuvable."},404);
    if(!(assignments||[]).some((x:any)=>x.class_id===a.class_id&&x.subject_id===a.subject_id))return json({error:"Accès refusé."},403);
-   const {data:e}=await db.from("enrollments").select("student_id,students(id,matricule,last_name,first_name)").eq("school_id",school.id).eq("class_id",a.class_id).eq("status","active");
-   const {data:g}=await db.from("grades").select("student_id,score,comment").eq("assessment_id",a.id);
+   const {data:enrollmentRows,error:enrollmentError}=await db.from("enrollments").select("student_id,status").eq("school_id",school.id).eq("class_id",a.class_id).in("status",["active","enrolled","confirmed"]);
+   if(enrollmentError)return json({error:"Chargement des élèves impossible: "+enrollmentError.message},500);
+   const studentIds=[...new Set((enrollmentRows||[]).map((x:any)=>x.student_id).filter(Boolean))];
+   const [{data:studentRows,error:studentError},{data:g,error:gradeError},{data:historyRows,error:historyError}]=await Promise.all([
+    studentIds.length?db.from("students").select("id,matricule,last_name,first_name").eq("school_id",school.id).in("id",studentIds):Promise.resolve({data:[],error:null}),
+    db.from("grades").select("student_id,score,comment").eq("assessment_id",a.id),
+    studentIds.length?db.from("grades").select("id,student_id,score,comment,graded_at,assessments!inner(title,assessment_date,max_score,term,school_id,subjects(name))").in("student_id",studentIds).eq("assessments.school_id",school.id).order("graded_at",{ascending:false}).limit(1000):Promise.resolve({data:[],error:null})
+   ]);
+   if(studentError)return json({error:"Lecture des fiches élèves impossible: "+studentError.message},500);
+   if(gradeError)return json({error:"Lecture des notes de l'évaluation impossible: "+gradeError.message},500);
+   if(historyError)return json({error:"Chargement de l'historique des notes impossible: "+historyError.message},500);
+   const studentById=new Map((studentRows||[]).map((x:any)=>[x.id,x]));
    const gm=new Map((g||[]).map((x:any)=>[x.student_id,x]));
-   return json({success:true,assessment:a,students:(e||[]).map((x:any)=>({student_id:x.student_id,student:x.students,score:gm.get(x.student_id)?.score??"",comment:gm.get(x.student_id)?.comment||""}))});
+   const historyByStudent=new Map<string,any[]>();
+   (historyRows||[]).forEach((row:any)=>{const arr=historyByStudent.get(row.student_id)||[];arr.push(row);historyByStudent.set(row.student_id,arr)});
+   const students=studentIds.map((studentId:string)=>{const current:any=gm.get(studentId);return {student_id:studentId,student:studentById.get(studentId)||null,score:current?.score??"",comment:current?.comment||"",history:historyByStudent.get(studentId)||[]}}).filter((x:any)=>x.student).sort((x:any,y:any)=>String(x.student.last_name||"").localeCompare(String(y.student.last_name||"")));
+   return json({success:true,assessment:a,students});
   }
   if(action==="save_grades"){
    const assessmentId=String(body.assessment_id||""),grades=Array.isArray(body.grades)?body.grades:[];
