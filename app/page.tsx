@@ -19,6 +19,9 @@ export default function Home(){
  useEffect(()=>{if(enabledModules&&enabledModules[page]===false&&!(profile?.roles?.name==="promoteur"&&page==="staff_payroll"))setPage("dashboard")},[enabledModules,page,profile?.roles?.name]);
  async function loadUser(uid:string,slug=""){
   setLoading(true);setError("");
+  // Isolation stricte : un Super Administrateur ne doit jamais entrer dans le panneau d’une école via son lien, même s’il possède aussi un profil scolaire.
+  const {data:platformAdmin,error:platformAdminError}=await supabase.from("platform_admins").select("user_id,active").eq("user_id",uid).eq("active",true).maybeSingle();
+  if(!platformAdminError&&platformAdmin?.active){window.location.replace("/platform");return}
   const {data:ctx,error:e}=await supabase.rpc("get_current_school_context");
   const p=ctx?.[0]||null;
   if(e){setProfile(null);setError(e.message);setLoading(false);return}
