@@ -137,11 +137,12 @@ function Login({school,email,password,setEmail,setPassword,busy,error,onSubmit}:
  const [branding,setBranding]=useState<any>(school||null);
  useEffect(()=>{const slug=typeof window!=="undefined"?(new URLSearchParams(window.location.search).get("school")||window.location.pathname.match(/^\/ecole\/([^/]+)/)?.[1]||""):"";if(!slug)return;(async()=>{const {data,error}=await supabase.functions.invoke("parent-portal",{body:{action:"branding",school_slug:slug}});if(!error&&!data?.error&&data?.school)setBranding(data.school)})()},[school]);
  const viewSchool=branding||school;
- return <div className="login" style={{"--school-primary":viewSchool?.primary_color||"#3730a3","--school-secondary":viewSchool?.secondary_color||"#4338ca"} as React.CSSProperties}><div className="loginCard">
+ return <div className="login" style={{"--school-primary":viewSchool?.primary_color||"#3730a3","--school-secondary":viewSchool?.secondary_color||"#4338ca"} as React.CSSProperties}><div className="loginCard loginCard--school">
   <div className="logo big">{viewSchool?.logo_url?<img src={viewSchool.logo_url} alt=""/>:"ML"}</div>
   <div className="eyebrow">{viewSchool?.name||"ÉTABLISSEMENT"}</div>
   <h1>Accès sécurisé</h1>
-  <p>Accès sécurisé à l’espace de gestion de votre établissement.</p>
+  <p>Connectez-vous à votre espace de gestion scolaire.</p>
+  <div className="loginTrust"><ShieldCheck size={16}/><span>Connexion réservée au personnel autorisé</span></div>
   <form onSubmit={onSubmit}>
    <label>Email<input type="email" required value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="administration@ecole.cd"/></label>
    <label>Mot de passe<input type="password" required value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="••••••••"/></label>
@@ -153,7 +154,7 @@ function Login({school,email,password,setEmail,setPassword,busy,error,onSubmit}:
  </div></div>
 }
 
-function Stat({title,value,icon}:any){return <div className="stat"><div className="icon">{icon}</div><small>{title}</small><b>{value}</b></div>}
+function Stat({title,value,icon}:any){return <div className="stat dashboardStat"><div className="icon dashboardStat__icon">{icon}</div><small>{title}</small><b>{value}</b></div>}
 
 function Dashboard({profile,school,role}:any){
  const [c,setC]=useState({students:0,teachers:0,classes:0,fcIncome:0,usdIncome:0,fcExpenses:0,usdExpenses:0});
@@ -184,15 +185,15 @@ function Dashboard({profile,school,role}:any){
    setYear(y.data?.name||"Année scolaire");setLoaded(true);
  })()},[profile.school_id]);
  const financialRoles=["promoteur","directeur","finance","comptable"].includes(role);
- return <div>
-  <div className="head"><div><h1>Tableau de bord</h1><p>{school?.name} • {year} • Vue du jour : {new Date().toLocaleDateString("fr-FR")}</p></div></div>
-  <div className="cards"><Stat title="Élèves inscrits" value={c.students} icon={<Users/>}/><Stat title="Enseignants" value={c.teachers} icon={<UserCog/>}/><Stat title="Classes" value={c.classes} icon={<BookOpen/>}/>{financialRoles&&<><Stat title="Encaissements FC (cumul)" value={money(c.fcIncome,"FC")} icon={<Wallet/>}/><Stat title="Encaissements USD (cumul)" value={money(c.usdIncome,"USD")} icon={<Wallet/>}/></>}</div>
-  <div className="panel" style={{marginTop:18}}><h3>Activité quotidienne</h3><p style={{color:"#718096",fontSize:13,marginTop:-4}}>Chiffres calculés à partir des enregistrements du jour, sans données fictives.{!loaded?" Chargement des indicateurs…":""}</p>
+ return <div className="dashboardPage">
+  <div className="dashboardHero"><div className="dashboardHero__copy"><span className="dashboardEyebrow">VUE D’ENSEMBLE</span><h1>Tableau de bord</h1><p>{school?.name} <span aria-hidden="true">·</span> {year}</p></div><div className="dashboardDate"><CalendarCheck size={16}/><span>{new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</span></div></div>
+  <div className="dashboardMetrics cards"><Stat title="Élèves inscrits" value={c.students} icon={<Users/>}/><Stat title="Enseignants" value={c.teachers} icon={<UserCog/>}/><Stat title="Classes" value={c.classes} icon={<BookOpen/>}/>{financialRoles&&<><Stat title="Encaissements FC (cumul)" value={money(c.fcIncome,"FC")} icon={<Wallet/>}/><Stat title="Encaissements USD (cumul)" value={money(c.usdIncome,"USD")} icon={<Wallet/>}/></>}</div>
+  <div className="panel dashboardPanel dashboardPanel--daily"><div className="dashboardSectionHeading"><div><span className="dashboardEyebrow">SUIVI JOURNALIER</span><h3>Activité quotidienne</h3></div><span className="dashboardLive"><span/>Données de l’établissement</span></div><p style={{color:"#718096",fontSize:13,marginTop:-4}}>Chiffres calculés à partir des enregistrements du jour, sans données fictives.{!loaded?" Chargement des indicateurs…":""}</p>
    <div className="cards"><Stat title="Nouvelles inscriptions" value={daily.enrollments} icon={<ClipboardList/>}/><Stat title="Présents enregistrés" value={daily.present} icon={<CalendarCheck/>}/><Stat title="Absents enregistrés" value={daily.absent} icon={<AlertTriangle/>}/></div>
    {financialRoles&&<><h4 style={{marginTop:18}}>Finances du jour</h4><div className="financeSummary"><div><small>Encaissements FC</small><b>{money(daily.fcIncome,"FC")}</b></div><div><small>Dépenses FC</small><b>{money(daily.fcExpenses,"FC")}</b></div><div><small>Encaissements USD</small><b>{money(daily.usdIncome,"USD")}</b></div><div><small>Dépenses USD</small><b>{money(daily.usdExpenses,"USD")}</b></div><div><small>Paie du jour FC</small><b>{money(daily.payrollFC,"FC")}</b></div><div><small>Paie du jour USD</small><b>{money(daily.payrollUSD,"USD")}</b></div></div></>}
   </div>
-  {financialRoles&&<div className="panel" style={{marginTop:18}}><h3>Situation financière cumulée</h3><div className="financeSummary"><div><small>Encaissements FC</small><b>{money(c.fcIncome,"FC")}</b></div><div><small>Dépenses FC</small><b>{money(c.fcExpenses,"FC")}</b></div><div><small>Encaissements USD</small><b>{money(c.usdIncome,"USD")}</b></div><div><small>Dépenses USD</small><b>{money(c.usdExpenses,"USD")}</b></div><div><small>Solde FC</small><b>{money(c.fcIncome-c.fcExpenses,"FC")}</b></div><div><small>Solde USD</small><b>{money(c.usdIncome-c.usdExpenses,"USD")}</b></div></div></div>}
-  <div className="panel" style={{marginTop:18}}><h3>Compte connecté</h3><p><b>{profile.full_name||"Utilisateur"}</b><br/><span className="role">{profile.roles?.label}</span></p><span className="badge">Compte actif</span></div>
+  {financialRoles&&<div className="panel dashboardPanel dashboardPanel--finance"><div className="dashboardSectionHeading"><div><span className="dashboardEyebrow">SUIVI FINANCIER</span><h3>Situation financière cumulée</h3></div></div><div className="financeSummary"><div><small>Encaissements FC</small><b>{money(c.fcIncome,"FC")}</b></div><div><small>Dépenses FC</small><b>{money(c.fcExpenses,"FC")}</b></div><div><small>Encaissements USD</small><b>{money(c.usdIncome,"USD")}</b></div><div><small>Dépenses USD</small><b>{money(c.usdExpenses,"USD")}</b></div><div><small>Solde FC</small><b>{money(c.fcIncome-c.fcExpenses,"FC")}</b></div><div><small>Solde USD</small><b>{money(c.usdIncome-c.usdExpenses,"USD")}</b></div></div></div>}
+  <div className="panel dashboardPanel dashboardAccount"><div className="dashboardSectionHeading"><div><span className="dashboardEyebrow">SESSION ACTIVE</span><h3>Compte connecté</h3></div><ShieldCheck size={20}/></div><p><b>{profile.full_name||"Utilisateur"}</b><br/><span className="role">{profile.roles?.label}</span></p><span className="badge">Compte actif</span></div>
  </div>;
 }
 
