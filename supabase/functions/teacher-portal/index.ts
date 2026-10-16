@@ -22,21 +22,25 @@ Deno.serve(async(req)=>{
   if(!teacher)return json({error:"Code enseignant invalide ou désactivé."},404);
   const {data:assignments}=await db.from("teacher_subject_assignments").select("id,class_id,subject_id,academic_year_id,classes(id,name),subjects(id,name,coefficient)").eq("school_id",school.id).eq("teacher_id",teacher.id).eq("active",true);
   if(action==="login"){
-   const classIds=[...new Set((assignments||[]).map((a:any)=>a.class_id))];
+   const classIds=[...new Set((assignments||[]).map((a:any)=>a.class_id).filter(Boolean))];
    const [{data:timetable,error:timeError},{data:enrollmentRows,error:enrollError}]=await Promise.all([
     db.from("schedules").select("id,weekday,start_time,end_time,room,class_id,subject_id,classes(name),subjects(name)").eq("school_id",school.id).eq("teacher_id",teacher.id).order("weekday").order("start_time"),
-    classIds.length?db.from("enrollments").select("student_id,class_id,classes(name),students(id,matricule,last_name,first_name)").eq("school_id",school.id).eq("status","active").in("class_id",classIds):Promise.resolve({data:[],error:null})
+    classIds.length?db.from("enrollments").select("student_id,class_id,status").eq("school_id",school.id).in("status",["active","enrolled","confirmed"]).in("class_id",classIds):Promise.resolve({data:[],error:null})
    ]);
    if(timeError)return json({error:"Chargement de l'emploi du temps impossible: "+timeError.message},500);
-   if(enrollError)return json({error:"Chargement des listes d'élèves impossible: "+enrollError.message},500);
-   const studentsByClass=classIds.map((classId:string)=>{const assignment=(assignments||[]).find((a:any)=>a.class_id===classId);const rows=(enrollmentRows||[]).filter((x:any)=>x.class_id===classId);return {class_id:classId,class_name:assignment?.classes?.name||rows[0]?.classes?.name||"Classe",student_count:rows.length,students:rows.map((x:any)=>({id:x.students?.id,matricule:x.students?.matricule,last_name:x.students?.last_name,first_name:x.students?.first_name})).filter((x:any)=>x.id).sort((a:any,b:any)=>(a.last_name||"").localeCompare(b.last_name||""))};});
+   if(enrollError)return json({error:"Chargement des inscriptions des élèves impossible: "+enrollError.message},500);
+   const studentIds=[...new Set((enrollmentRows||[]).map((x:any)=>x.student_id).filter(Boolean))];
+   const {data:studentRows,error:studentError}=studentIds.length?await db.from("students").select("id,matricule,last_name,first_name").eq("school_id",school.id).in("id",studentIds):{data:[],error:null};
+   if(studentError)return json({error:"Chargement des fiches élèves impossible: "+studentError.message},500);
+   const studentById=new Map((studentRows||[]).map((x:any)=>[x.id,x]));
+   const studentsByClass=classIds.map((classId:string)=>{const assignment=(assignments||[]).find((a:any)=>a.class_id===classId);const rows=(enrollmentRows||[]).filter((x:any)=>x.class_id===classId).map((x:any)=>studentById.get(x.student_id)).filter(Boolean);return {class_id:classId,class_name:assignment?.classes?.name||"Classe",student_count:rows.length,students:rows.sort((a:any,b:any)=>(a.last_name||"").localeCompare(b.last_name||""))};});
    return json({success:true,school,teacher:{id:teacher.id,matricule:teacher.matricule,last_name:teacher.last_name,first_name:teacher.first_name,post_name:teacher.post_name},assignments:assignments||[],timetable:timetable||[],students_by_class:studentsByClass});
   }
   if(action==="create_assessment"){
    const classId=String(body.class_id||""),subjectId=String(body.subject_id||"");
    if(!(assignments||[]).some((a:any)=>a.class_id===classId&&a.subject_id===subjectId))return json({error:"Cette classe et cette matière ne sont pas affectées à votre compte."},403);
    if(!String(body.title||"").trim())return json({error:"Le titre de l'évaluation est obligatoire."},400);
-   const {data,error}=await db.from("assessments").insert({school_id:school.id,class_id:classId,subject_id:subjectId,title:String(body.title).trim(),assessment_date:body.assessment_date||null,max_score:Number(body.max_score||20),term:String(body.term||"Trimestre 1"),assessment_type:String(body.assessment_type||"devoir"),created_by:null}).select("id,title,assessment_date,max_score,term,assessment_type,class_id,subject_id").single();
+   const {data,error}=await db.from("assessments").insert({school_id:school.id,class_id:classId,subject_id:subjectId,title:String(body.title).trim(),assessment_date:body.assessment_date||null,max_score:Number(body.max_score||20),term:String(body.term||"Trimestre 1"),assessment_type:String(body.assessment_type||"devoir"),created_by:null,created_by_teacher_id:teacher.id}).select("id,title,assessment_date,max_score,term,assessment_type,class_id,subject_id,created_by_teacher_id").single();
    if(error)return json({error:error.message},400);
    return json({success:true,assessment:data});
   }
