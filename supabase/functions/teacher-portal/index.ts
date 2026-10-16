@@ -21,7 +21,17 @@ Deno.serve(async(req)=>{
   if(te)return json({error:"Lecture impossible: "+te.message},500);
   if(!teacher)return json({error:"Code enseignant invalide ou désactivé."},404);
   const {data:assignments}=await db.from("teacher_subject_assignments").select("id,class_id,subject_id,academic_year_id,classes(id,name),subjects(id,name,coefficient)").eq("school_id",school.id).eq("teacher_id",teacher.id).eq("active",true);
-  if(action==="login")return json({success:true,school,teacher:{id:teacher.id,matricule:teacher.matricule,last_name:teacher.last_name,first_name:teacher.first_name,post_name:teacher.post_name},assignments:assignments||[]});
+  if(action==="login"){
+   const classIds=[...new Set((assignments||[]).map((a:any)=>a.class_id))];
+   const [{data:timetable,error:timeError},{data:enrollmentRows,error:enrollError}]=await Promise.all([
+    db.from("schedules").select("id,weekday,start_time,end_time,room,class_id,subject_id,classes(name),subjects(name)").eq("school_id",school.id).eq("teacher_id",teacher.id).order("weekday").order("start_time"),
+    classIds.length?db.from("enrollments").select("student_id,class_id,classes(name),students(id,matricule,last_name,first_name)").eq("school_id",school.id).eq("status","active").in("class_id",classIds):Promise.resolve({data:[],error:null})
+   ]);
+   if(timeError)return json({error:"Chargement de l'emploi du temps impossible: "+timeError.message},500);
+   if(enrollError)return json({error:"Chargement des listes d'élèves impossible: "+enrollError.message},500);
+   const studentsByClass=classIds.map((classId:string)=>{const assignment=(assignments||[]).find((a:any)=>a.class_id===classId);const rows=(enrollmentRows||[]).filter((x:any)=>x.class_id===classId);return {class_id:classId,class_name:assignment?.classes?.name||rows[0]?.classes?.name||"Classe",student_count:rows.length,students:rows.map((x:any)=>({id:x.students?.id,matricule:x.students?.matricule,last_name:x.students?.last_name,first_name:x.students?.first_name})).filter((x:any)=>x.id).sort((a:any,b:any)=>(a.last_name||"").localeCompare(b.last_name||""))};});
+   return json({success:true,school,teacher:{id:teacher.id,matricule:teacher.matricule,last_name:teacher.last_name,first_name:teacher.first_name,post_name:teacher.post_name},assignments:assignments||[],timetable:timetable||[],students_by_class:studentsByClass});
+  }
   if(action==="create_assessment"){
    const classId=String(body.class_id||""),subjectId=String(body.subject_id||"");
    if(!(assignments||[]).some((a:any)=>a.class_id===classId&&a.subject_id===subjectId))return json({error:"Cette classe et cette matière ne sont pas affectées à votre compte."},403);
@@ -47,14 +57,62 @@ Deno.serve(async(req)=>{
   }
   if(action==="save_grades"){
    const assessmentId=String(body.assessment_id||""),grades=Array.isArray(body.grades)?body.grades:[];
-   const {data:a}=await db.from("assessments").select("id,class_id,subject_id,school_id").eq("id",assessmentId).eq("school_id",school.id).maybeSingle();
+   const {data:a,error:assessmentError}=await db.from("assessments").select("id,class_id,subject_id,school_id,max_score,term").eq("id",assessmentId).eq("school_id",school.id).maybeSingle();
+   if(assessmentError)return json({error:assessmentError.message},500);
    if(!a||!(assignments||[]).some((x:any)=>x.class_id===a.class_id&&x.subject_id===a.subject_id))return json({error:"Évaluation introuvable ou non autorisée."},403);
-   const {data:enrollments}=await db.from("enrollments").select("student_id").eq("school_id",school.id).eq("class_id",a.class_id).eq("status","active");
+   const {data:enrollments,error:enrollmentError}=await db.from("enrollments").select("student_id").eq("school_id",school.id).eq("class_id",a.class_id).eq("status","active");
+   if(enrollmentError)return json({error:enrollmentError.message},500);
    const allowedStudents=new Set((enrollments||[]).map((x:any)=>x.student_id));
-   const clean=grades.filter((g:any)=>allowedStudents.has(g.student_id)&&g.score!==""&&g.score!==null).map((g:any)=>({assessment_id:a.id,student_id:g.student_id,score:Number(g.score),comment:g.comment?String(g.comment):null,graded_at:new Date().toISOString()}));
-   await db.from("grades").delete().eq("assessment_id",a.id);
-   if(clean.length){const {error}=await db.from("grades").insert(clean);if(error)return json({error:error.message},400);}
-   return json({success:true,count:clean.length});
+   const clean=grades.filter((g:any)=>g.score!==""&&g.score!==null&&g.score!==undefined);
+   for(const g of clean){
+    const score=Number(g.score);
+    if(!allowedStudents.has(g.student_id))return json({error:"Un élève envoyé n'appartient pas à cette classe."},403);
+    if(!Number.isFinite(score)||score<0||score>Number(a.max_score))return json({error:"Chaque note doit être comprise entre 0 et "+a.max_score+"."},400);
+   }
+   let saved=0;
+   for(const g of clean){
+    const values={score:Number(g.score),comment:g.comment?String(g.comment):null,graded_at:new Date().toISOString()};
+    const {data:existing,error:findError}=await db.from("grades").select("id").eq("assessment_id",a.id).eq("student_id",g.student_id).maybeSingle();
+    if(findError)return json({error:"Recherche d'une note impossible: "+findError.message,saved},500);
+    const result=existing
+     ?await db.from("grades").update(values).eq("id",existing.id)
+     :await db.from("grades").insert({...values,assessment_id:a.id,student_id:g.student_id});
+    if(result.error)return json({error:"Enregistrement interrompu après "+saved+" note(s): "+result.error.message,saved},400);
+    saved++;
+   }
+   let reportCardsSynced=0;
+   const changedStudents=[...new Set(clean.map((g:any)=>g.student_id))];
+   for(const studentId of changedStudents){
+    const {data:enrollment}=await db.from("enrollments").select("academic_year_id").eq("school_id",school.id).eq("student_id",studentId).eq("status","active").not("academic_year_id","is",null).limit(1).maybeSingle();
+    if(!enrollment?.academic_year_id)continue;
+    const {data:studentGrades,error:gradeError}=await db.from("grades").select("score,assessments!inner(subject_id,max_score,term,school_id,subjects(coefficient))").eq("student_id",studentId).eq("assessments.school_id",school.id).eq("assessments.term",a.term);
+    if(gradeError)return json({error:"Les notes ont été enregistrées, mais le calcul du relevé a échoué: "+gradeError.message,saved,reportCardsSynced},500);
+    const bySubject=new Map<string,{sum:number,count:number,coefficient:number}>();
+    for(const row of studentGrades||[]){
+     const assessment=(row as any).assessments;
+     const max=Number(assessment?.max_score||0),score=Number(row.score);
+     if(!assessment?.subject_id||max<=0||!Number.isFinite(score))continue;
+     const current=bySubject.get(assessment.subject_id)||{sum:0,count:0,coefficient:Number(assessment.subjects?.coefficient||1)};
+     current.sum+=(score/max)*20;current.count++;current.coefficient=Number(assessment.subjects?.coefficient||current.coefficient||1);
+     bySubject.set(assessment.subject_id,current);
+    }
+    const subjectAverages=[...bySubject.entries()].map(([subject_id,v])=>({subject_id,average:Number((v.sum/v.count).toFixed(2)),coefficient:v.coefficient>0?v.coefficient:1}));
+    if(!subjectAverages.length)continue;
+    const weightTotal=subjectAverages.reduce((sum,x)=>sum+x.coefficient,0);
+    const generalAverage=Number((subjectAverages.reduce((sum,x)=>sum+x.average*x.coefficient,0)/weightTotal).toFixed(2));
+    const {data:card,error:cardError}=await db.from("report_cards").upsert({school_id:school.id,student_id:studentId,academic_year_id:enrollment.academic_year_id,term:a.term||"Trimestre 1",average:generalAverage,status:"draft",validated_by:null,validated_at:null,updated_at:new Date().toISOString()},{onConflict:"student_id,academic_year_id,term"}).select("id").single();
+    if(cardError)return json({error:"Notes enregistrées, mais synchronisation du relevé impossible: "+cardError.message,saved,reportCardsSynced},500);
+    const {data:existingResults,error:resultError}=await db.from("report_card_results").select("id,subject_id").eq("report_card_id",card.id);
+    if(resultError)return json({error:"Moyenne générale calculée, mais détail par matière indisponible: "+resultError.message,saved,reportCardsSynced},500);
+    for(const subject of subjectAverages){
+     const existing=(existingResults||[]).find((x:any)=>x.subject_id===subject.subject_id);
+     const values={coefficient:subject.coefficient,average:subject.average};
+     const result=existing?await db.from("report_card_results").update(values).eq("id",existing.id):await db.from("report_card_results").insert({report_card_id:card.id,subject_id:subject.subject_id,...values});
+     if(result.error)return json({error:"Moyenne enregistrée, mais synchronisation d'une matière échouée: "+result.error.message,saved,reportCardsSynced},500);
+    }
+    reportCardsSynced++;
+   }
+   return json({success:true,count:saved,report_cards_synced:reportCardsSynced,message:"Notes enregistrées et relevés de cote recalculés en brouillon."});
   }
   return json({error:"Action non reconnue."},400);
  }catch(e){return json({error:e instanceof Error?e.message:"Erreur serveur."},500)}
