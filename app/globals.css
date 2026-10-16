@@ -141,3 +141,25 @@ html[data-theme="dark"] .btn.light{background:var(--ui-surface-muted);color:var(
 @media(max-width:760px){.designSystem__header{flex-direction:column}.designSystem__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ui-card{padding:16px}}
 @media(max-width:420px){.designSystem__grid{grid-template-columns:1fr}.designSystem__header .ui-button{width:100%}}
 @media(prefers-reduced-motion:reduce){.ui-button{transition:none}}
+
+/* Navigation et thème global : composants communs */
+.themeToggle{display:inline-grid;place-items:center;flex:none;width:40px;height:40px;border:1px solid var(--ui-border,#e2e8f0);border-radius:10px;background:var(--ui-surface,#fff);color:var(--ui-text,#172033)}
+.themeToggle:hover{background:var(--ui-brand-soft,#eef2ff);color:var(--ui-brand,#4338ca)}
+.themeToggle:focus-visible{outline:3px solid rgba(99,102,241,.35);outline-offset:2px}
+.topContext{display:flex;flex-direction:column;gap:3px;min-width:100px;max-width:210px;overflow:hidden}
+.topContext small{font-size:10px;color:#718096;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topContext b{font-size:12px;color:#26364a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html[data-theme="dark"] body{background:var(--ui-canvas);color:var(--ui-text)}
+html[data-theme="dark"] .top,html[data-theme="dark"] .stat,html[data-theme="dark"] .panel,html[data-theme="dark"] .tableWrap{background:var(--ui-surface);color:var(--ui-text);border-color:var(--ui-border)}
+html[data-theme="dark"] .topContext b{color:var(--ui-text)}
+html[data-theme="dark"] .topContext small{color:var(--ui-text-muted)}
+html[data-theme="dark"] .themeToggle{background:var(--ui-surface);color:var(--ui-text);border-color:var(--ui-border)}
+html[data-theme="dark"] .searchBox,html[data-theme="dark"] .miniSearch{background:var(--ui-surface-muted);border-color:var(--ui-border)}
+html[data-theme="dark"] .searchBox input,html[data-theme="dark"] .miniSearch input{color:var(--ui-text)}
+html[data-theme="dark"] .content{color:var(--ui-text)}
+html[data-theme="dark"] .content .panel,html[data-theme="dark"] .content .stat{background:var(--ui-surface);border-color:var(--ui-border)}
+html[data-theme="dark"] .content th{background:var(--ui-surface-muted);color:var(--ui-text-muted)}
+html[data-theme="dark"] .content td{border-bottom-color:var(--ui-border)}
+html[data-theme="dark"] .content input,html[data-theme="dark"] .content select,html[data-theme="dark"] .content textarea{background:var(--ui-surface);color:var(--ui-text);border-color:var(--ui-border)}
+html[data-theme="dark"] .content .btn.light{background:var(--ui-surface-muted);color:var(--ui-text)}
+@media(max-width:950px){.topContext{display:none}.themeToggle{width:38px;height:38px}}
