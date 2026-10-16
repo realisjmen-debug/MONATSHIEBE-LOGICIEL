@@ -15,9 +15,12 @@ export async function GET(request: NextRequest) {
   const themeColor = /^#[0-9a-fA-F]{6}$/.test(params.get("theme_color") || "") ? params.get("theme_color")! : "#4338ca";
   const startUrlParam = params.get("start_url") || "/";
   const startUrl = startUrlParam.startsWith("/") && !startUrlParam.startsWith("//") ? startUrlParam : "/";
+  const schoolSlug = params.get("school");
   const iconParam = params.get("icon");
   let icon = "/pwa-icon.svg";
-  if (iconParam) {
+  if (schoolSlug && /^[a-zA-Z0-9_-]{1,120}$/.test(schoolSlug)) {
+    icon = new URL("/api/pwa-icon?school=" + encodeURIComponent(schoolSlug), request.nextUrl.origin).toString();
+  } else if (iconParam) {
     try {
       const parsed = new URL(iconParam, request.nextUrl.origin);
       if (parsed.protocol === "https:" || parsed.origin === request.nextUrl.origin) icon = parsed.toString();
