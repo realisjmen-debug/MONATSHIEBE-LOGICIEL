@@ -399,7 +399,7 @@ html[data-theme="dark"] .globalSearchResults>button:hover,html[data-theme="dark"
 
 
 /* Progressive Web App installation controls */
-.pwaInstallButton,.pwaInstalled{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;padding:10px 14px;font:600 13px/1.2 inherit;white-space:nowrap}
+.pwaInstallButton,.pwaInstalled{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;padding:10px 14px;font-family:inherit;font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap}
 .pwaInstallButton{border:1px solid var(--school-primary,#4338ca);background:var(--school-primary,#4338ca);color:#fff;cursor:pointer;box-shadow:0 3px 10px rgba(67,56,202,.14)}
 .pwaInstallButton:hover{filter:brightness(1.06)}
 .pwaInstallButton:focus-visible{outline:3px solid rgba(99,102,241,.35);outline-offset:2px}
