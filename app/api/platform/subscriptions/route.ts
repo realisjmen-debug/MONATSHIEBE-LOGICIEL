@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   const auth = await authorize(request);
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data, error } = await auth.db.from("school_subscriptions")
-    .select("id,school_id,status,ends_at,created_at")
+    .select("id,school_id,plan_id,status,ends_at,created_at")
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: "Lecture des abonnements impossible : " + error.message }, { status: 500 });
   return NextResponse.json({ subscriptions: data || [] });
@@ -44,9 +44,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const schoolId = typeof body.school_id === "string" ? body.school_id : "";
     const status = typeof body.status === "string" ? body.status : "";
+    const planId = typeof body.plan_id === "string" ? body.plan_id : "";
     const date = body.ends_at === null || body.ends_at === "" ? null : String(body.ends_at);
     const allowed = ["trial", "active", "suspended", "expired", "cancelled"];
-    if (!schoolId || !allowed.includes(status)) return NextResponse.json({ error: "Établissement ou statut invalide." }, { status: 400 });
+    if (!schoolId || !allowed.includes(status) || !planId) return NextResponse.json({ error: "Établissement, plan ou statut invalide." }, { status: 400 });
+    const { data: plan, error: planError } = await auth.db.from("subscription_plans").select("id").eq("id", planId).maybeSingle();
+    if (planError || !plan) return NextResponse.json({ error: "Le plan sélectionné est introuvable." }, { status: 400 });
     let endsAt: string | null = null;
     if (date !== null) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date + "T00:00:00Z"))) {
@@ -58,10 +61,21 @@ export async function POST(request: NextRequest) {
       .select("id,school_id,status,ends_at,created_at")
       .eq("school_id", schoolId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (lookupError) return NextResponse.json({ error: "Recherche de l’abonnement impossible : " + lookupError.message }, { status: 500 });
-    if (!existing) return NextResponse.json({ error: "Aucun abonnement n’est associé à cette école. Il faut d’abord créer ou rattacher un abonnement." }, { status: 404 });
-    const { data: subscription, error } = await auth.db.from("school_subscriptions")
-      .update({ status, ends_at: endsAt }).eq("id", existing.id)
-      .select("id,school_id,status,ends_at,created_at").single();
+    let subscription;
+    let error;
+    if (!existing) {
+      const { data: created, error: createError } = await auth.db.from("school_subscriptions")
+        .insert({ school_id: schoolId, plan_id: planId, status, starts_at: new Date().toISOString(), ends_at: endsAt })
+        .select("id,school_id,plan_id,status,ends_at,created_at").single();
+      subscription = created;
+      error = createError;
+    } else {
+      const { data: updated, error: updateError } = await auth.db.from("school_subscriptions")
+        .update({ plan_id: planId, status, ends_at: endsAt }).eq("id", existing.id)
+        .select("id,school_id,plan_id,status,ends_at,created_at").single();
+      subscription = updated;
+      error = updateError;
+    }
     if (error || !subscription) return NextResponse.json({ error: "Enregistrement de l’abonnement impossible : " + (error?.message || "aucune ligne mise à jour") }, { status: 500 });
     return NextResponse.json({ subscription });
   } catch {
