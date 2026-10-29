@@ -104,7 +104,6 @@ export default function PlatformPage(){
  }
  async function saveSubscription(s:School){
    const draft=subDrafts[s.id];if(!draft){setMsg("Aucun abonnement à modifier pour cet établissement.");return}
-   if(draft.ends_at&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(draft.ends_at)){setMsg("Date de fin invalide.");return}
    setSubscriptionBusy(s.id);setMsg("");
    const {data:sessionData}=await supabase.auth.getSession();const token=sessionData.session?.access_token;
    try{const response=await fetch("/api/platform/subscriptions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+(token||"")},body:JSON.stringify({school_id:s.id,status:draft.status,ends_at:draft.ends_at||null})});const payload=await response.json();if(!response.ok)throw new Error(payload.error||"Modification impossible.");setSubscriptions(current=>({...current,[s.id]:payload.subscription}));setMsg("Abonnement mis à jour pour "+s.name+".");}catch(error){setMsg(error instanceof Error?error.message:"Modification impossible.")}finally{setSubscriptionBusy("")}
