@@ -9,6 +9,7 @@ type School={id:string;name:string;slug:string;status:string;city:string|null;ph
 type Plan={id:string;name:string;label:string;price_monthly:number;price_yearly:number};
 type Module={module_key:string;name:string;description:string;category:string;implementation_status:"available"|"in_development"|"planned";default_enabled:boolean};
 type SchoolModule={module_key:string;enabled:boolean};
+type Subscription={id:string;school_id:string;status:string;ends_at:string|null;created_at:string|null};
 
 function uniqueModuleRows(rows:Module[]):Module[]{
  const byName=new Map<string,Module>();
@@ -27,11 +28,13 @@ export default function PlatformPage(){
  const [modules,setModules]=useState<Module[]>([]),[selectedSchoolId,setSelectedSchoolId]=useState(""),[schoolModules,setSchoolModules]=useState<Record<string,boolean>>({}),[moduleBusy,setModuleBusy]=useState(false);
  const [newModule,setNewModule]=useState({name:"",key:"",category:"Autres",description:""});
  const [schoolQuery,setSchoolQuery]=useState(""),[schoolStatusFilter,setSchoolStatusFilter]=useState("all");
+ const [subscriptions,setSubscriptions]=useState<Record<string,Subscription>>({}),[subDrafts,setSubDrafts]=useState<Record<string,{status:string;ends_at:string}>>({}),[subscriptionBusy,setSubscriptionBusy]=useState<string>("");
  const filteredSchools=schools.filter(s=>(s.name+" "+s.slug+" "+(s.city||"")).toLowerCase().includes(schoolQuery.toLowerCase())&&(schoolStatusFilter==="all"||s.status===schoolStatusFilter));
  const activeSchools=schools.filter(s=>s.status==="active").length; const suspendedSchools=schools.filter(s=>s.status==="suspended").length;
  async function load(){
    setLoading(true);
    const {data:u}=await supabase.auth.getUser();
+   const {data:sessionData}=await supabase.auth.getSession();
    if(!u.user){location.href="/platform/login";return}
    const {data:a,error:aError}=await supabase.from("platform_admins").select("user_id,active").eq("user_id",u.user.id).eq("active",true).maybeSingle();
    const authorized=!aError&&a?.active===true;
@@ -42,6 +45,8 @@ export default function PlatformPage(){
        supabase.from("subscription_plans").select("id,name,label,price_monthly,price_yearly").eq("active",true).order("price_monthly")
      ]);
      setSchools(s.data||[]);setPlans(p.data||[]);
+     const accessToken=sessionData.session?.access_token;
+     if(accessToken){try{const response=await fetch("/api/platform/subscriptions",{headers:{Authorization:"Bearer "+accessToken}});const payload=await response.json();if(response.ok&&Array.isArray(payload.subscriptions)){const map:Record<string,Subscription>={};const drafts:Record<string,{status:string;ends_at:string}>={};for(const sub of payload.subscriptions){if(!map[sub.school_id]){map[sub.school_id]=sub;drafts[sub.school_id]={status:sub.status||"trial",ends_at:sub.ends_at?String(sub.ends_at).slice(0,10):""}}}setSubscriptions(map);setSubDrafts(drafts)}else if(payload.error)setMsg("Abonnements : "+payload.error)}catch{setMsg("Impossible de charger les abonnements.")}}
      if(s.data?.length)setSelectedSchoolId(current=>current&&s.data.some((x:any)=>x.id===current)?current:s.data[0].id);
      const {data:moduleRows}=await supabase.from("module_catalog").select("module_key,name,description,category,implementation_status,default_enabled").order("category").order("name");
      setModules(uniqueModuleRows((moduleRows||[]) as Module[]));
@@ -97,6 +102,13 @@ export default function PlatformPage(){
    setMsg("Administrateur créé pour "+adminSchool.name+". Il peut maintenant se connecter avec son email et le mot de passe défini.");
    setAdmin({full_name:"",email:"",phone:"",password:""});setAdminSchool(null);setBusy(false);
  }
+ async function saveSubscription(s:School){
+   const draft=subDrafts[s.id];if(!draft){setMsg("Aucun abonnement à modifier pour cet établissement.");return}
+   if(draft.ends_at&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(draft.ends_at)){setMsg("Date de fin invalide.");return}
+   setSubscriptionBusy(s.id);setMsg("");
+   const {data:sessionData}=await supabase.auth.getSession();const token=sessionData.session?.access_token;
+   try{const response=await fetch("/api/platform/subscriptions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+(token||"")},body:JSON.stringify({school_id:s.id,status:draft.status,ends_at:draft.ends_at||null})});const payload=await response.json();if(!response.ok)throw new Error(payload.error||"Modification impossible.");setSubscriptions(current=>({...current,[s.id]:payload.subscription}));setMsg("Abonnement mis à jour pour "+s.name+".");}catch(error){setMsg(error instanceof Error?error.message:"Modification impossible.")}finally{setSubscriptionBusy("")}
+ }
  async function toggle(s:School){
    const next=s.status==="suspended"?"active":"suspended";
    const {error}=await supabase.from("schools").update({status:next,updated_at:new Date().toISOString()}).eq("id",s.id);
@@ -124,7 +136,7 @@ export default function PlatformPage(){
     </form>
     <div className="panel"><div className="sectionTitle"><Building2/><div><h3>Écoles enregistrées</h3><p>{filteredSchools.length} résultat(s) sur {schools.length} établissement(s)</p></div></div>
       <div className="schoolFilters"><label><Search size={16}/><input value={schoolQuery} onChange={e=>setSchoolQuery(e.target.value)} placeholder="Rechercher par école, identifiant ou ville"/></label><select aria-label="Filtrer par statut" value={schoolStatusFilter} onChange={e=>setSchoolStatusFilter(e.target.value)}><option value="all">Tous les statuts</option><option value="active">Actives</option><option value="suspended">Suspendues</option><option value="pending">En attente</option></select></div>
-      <div className="schoolList">{filteredSchools.map(s=><div className="schoolRow" key={s.id}><div><b>{s.name}</b><small>{s.slug} • {s.city||"—"}</small><div className="schoolLinks"><div><small>Connexion école</small><code>{typeof window!=="undefined"?window.location.origin:""}/ecole/{s.slug}</code></div><div><small>Espace parent</small><code>{typeof window!=="undefined"?window.location.origin:""}/ecole/{s.slug}/parent</code></div><div><small>Portail enseignant</small><code>{typeof window!=="undefined"?window.location.origin:""}/ecole/{s.slug}/enseignant</code></div></div><span className={s.status==="suspended"?"status off":"status"}>{s.status}</span></div><div className="rowActions"><button className="iconBtn" title="Copier le lien école" onClick={()=>{navigator.clipboard?.writeText(window.location.origin+"/ecole/"+s.slug);setMsg("Lien de connexion école copié.")}}><Copy size={17}/></button><button className="iconBtn" title="Copier le lien parent" onClick={()=>{navigator.clipboard?.writeText(window.location.origin+"/ecole/"+s.slug+"/parent");setMsg("Lien espace parent copié.")}}><Copy size={17}/></button><button className="iconBtn" onClick={()=>{setAdminSchool(s);setMsg("")}} title="Créer l’administrateur"><UserPlus size={17}/></button><a className="iconBtn" href={"/ecole/"+encodeURIComponent(s.slug)} title="Ouvrir"><ExternalLink size={17}/></a><button className="iconBtn" onClick={()=>toggle(s)} title={s.status==="suspended"?"Activer":"Suspendre"}><Power size={17}/></button></div></div>)}</div>
+      <div className="schoolList">{filteredSchools.map(s=><div className="schoolRow" key={s.id}><div><b>{s.name}</b><small>{s.slug} • {s.city||"—"}</small><div className="schoolLinks"><div><small>Connexion école</small><code>{typeof window!=="undefined"?window.location.origin:""}/ecole/{s.slug}</code></div><div><small>Espace parent</small><code>{typeof window!=="undefined"?window.location.origin:""}/ecole/{s.slug}/parent</code></div><div><small>Portail enseignant</small><code>{typeof window!=="undefined"?window.location.origin:""}/ecole/{s.slug}/enseignant</code></div></div><span className={s.status==="suspended"?"status off":"status"}>{s.status}</span><div className="subscriptionEditor"><b>Abonnement</b>{subscriptions[s.id]?<><label>Statut<select value={subDrafts[s.id]?.status||subscriptions[s.id].status} onChange={e=>setSubDrafts(current=>({...current,[s.id]:{status:e.target.value,ends_at:current[s.id]?.ends_at??(subscriptions[s.id].ends_at?String(subscriptions[s.id].ends_at).slice(0,10):"")}}))}><option value="trial">Essai</option><option value="active">Actif</option><option value="suspended">Suspendu</option><option value="expired">Expiré</option><option value="cancelled">Annulé</option></select></label><label>Valable jusqu’au<input type="date" value={subDrafts[s.id]?.ends_at??(subscriptions[s.id].ends_at?String(subscriptions[s.id].ends_at).slice(0,10):"")} onChange={e=>setSubDrafts(current=>({...current,[s.id]:{status:current[s.id]?.status??subscriptions[s.id].status,ends_at:e.target.value}}))}/></label><button className="btn light" disabled={subscriptionBusy===s.id} onClick={()=>saveSubscription(s)}>{subscriptionBusy===s.id?"Enregistrement…":"Enregistrer l’abonnement"}</button></>:<small>Aucun abonnement trouvé. Créez ou rattachez un abonnement avant de modifier l’accès.</small>}</div></div><div className="rowActions"><button className="iconBtn" title="Copier le lien école" onClick={()=>{navigator.clipboard?.writeText(window.location.origin+"/ecole/"+s.slug);setMsg("Lien de connexion école copié.")}}><Copy size={17}/></button><button className="iconBtn" title="Copier le lien parent" onClick={()=>{navigator.clipboard?.writeText(window.location.origin+"/ecole/"+s.slug+"/parent");setMsg("Lien espace parent copié.")}}><Copy size={17}/></button><button className="iconBtn" onClick={()=>{setAdminSchool(s);setMsg("")}} title="Créer l’administrateur"><UserPlus size={17}/></button><a className="iconBtn" href={"/ecole/"+encodeURIComponent(s.slug)} title="Ouvrir"><ExternalLink size={17}/></a><button className="iconBtn" onClick={()=>toggle(s)} title={s.status==="suspended"?"Activer":"Suspendre"}><Power size={17}/></button></div></div>)}</div>
     </div>
    </div>
 
