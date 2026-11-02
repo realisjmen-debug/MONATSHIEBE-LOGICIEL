@@ -12,6 +12,9 @@ Deno.serve(async(req)=>{
   const db=createClient(url,service),slug=String(body.school_slug||"").trim().toLowerCase();
   const {data:school}=await db.from("schools").select("id,name,slug,logo_url,logo_path,primary_color,secondary_color").eq("slug",slug).eq("status","active").maybeSingle();
   if(!school)return json({error:"Établissement introuvable ou suspendu."},404);
+  const {data:license,error:licenseError}=await db.from("school_licenses").select("status").eq("school_id",school.id).maybeSingle();
+  if(licenseError)return json({error:"Vérification de la licence impossible."},500);
+  if(action!=="branding"&&license?.status!=="active")return json({error:"La licence perpétuelle de cet établissement n’est pas active. Contactez son administration."},403);
   if(action==="branding"){
    let logoUrl=school.logo_url||null;
    if(school.logo_path){const {data:x}=await db.storage.from("school-assets").createSignedUrl(school.logo_path,3600);logoUrl=x?.signedUrl||logoUrl}
