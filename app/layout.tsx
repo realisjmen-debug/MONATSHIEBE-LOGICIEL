@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "MONATSHIEBE LOGICIEL",
-  description: "Plateforme de gestion scolaire MONATSHIEBE LOGICIEL",
+  description: "MONATSHIEBE LOGICIEL — plateforme professionnelle de gestion scolaire, personnalisable pour chaque établissement.",
   applicationName: "MONATSHIEBE Logiciel Scolaire",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -21,7 +21,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#4338ca",
+  themeColor: "#3730a3",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
