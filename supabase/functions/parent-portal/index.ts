@@ -13,6 +13,9 @@ Deno.serve(async(req)=>{
   const {data:school,error:se}=await db.from("schools").select("id,name,slug,logo_url,logo_path,primary_color,secondary_color,city,phone,address").eq("slug",slug).eq("status","active").maybeSingle();
   if(se)return json({error:"Lecture de l'établissement impossible: "+se.message},500);
   if(!school)return json({error:"Établissement introuvable ou suspendu."},404);
+  const {data:license,error:licenseError}=await db.from("school_licenses").select("status").eq("school_id",school.id).maybeSingle();
+  if(licenseError)return json({error:"Vérification de la licence impossible."},500);
+  if(action!=="branding"&&license?.status!=="active")return json({error:"La licence perpétuelle de cet établissement n’est pas active. Contactez son administration."},403);
   if(action==="branding"){let logoUrl=school.logo_url||null;if(school.logo_path){const {data:x}=await db.storage.from("school-assets").createSignedUrl(school.logo_path,3600);logoUrl=x?.signedUrl||logoUrl}return json({success:true,school:{name:school.name,slug:school.slug,logo_url:logoUrl,primary_color:school.primary_color,secondary_color:school.secondary_color}});}
   if(!/^P-[A-Z0-9]{8,20}$/.test(code))return json({error:"Code parent invalide."},400);
   const {data:s,error:e}=await db.from("students").select("id,school_id,matricule,last_name,first_name,post_name,sex,date_of_birth,photo_url,photo_path,parent_access_code").eq("school_id",school.id).eq("parent_access_code",code).eq("active",true).maybeSingle();
