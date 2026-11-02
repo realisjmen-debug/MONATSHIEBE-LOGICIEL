@@ -194,7 +194,7 @@ function AcademicYearDebtManager({profile,can}:any){
   if(!source||!target||source===target){setMsg("Choisissez deux années scolaires différentes.");return}
   if(!confirm("Confirmer le report des soldes impayés vers l’année cible ? Les dettes déjà reportées ne seront pas dupliquées."))return;
   setBusy(true);setMsg("");
-  const {data,error}=await supabase.rpc("carry_forward_student_debts",{p_source_year_id:source,p_target_year_id:target});
+  const {data,error}=await supabase.rpc("carry_forward_student_debts_for_studies",{p_source_year_id:source,p_target_year_id:target});
   if(error)setMsg("Report impossible : "+error.message);else{setMsg(String(data||0)+" dette(s) reportée(s). Les reports déjà existants ont été ignorés.");await load()}setBusy(false);
  }
  async function settleDebt(e:any){
