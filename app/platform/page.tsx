@@ -20,7 +20,7 @@ function uniqueModuleRows(rows:Module[]):Module[]{
  }
  return [...byName.values()].sort((a,b)=>a.category.localeCompare(b.category)||a.name.localeCompare(b.name));
 }
-const formatMoney=(amount:number|null|undefined,currency:string)=>amount===null||amount===undefined||amount==="" as any?"À définir":new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2}).format(Number(amount))+" "+(currency==="CDF"?"FC":"USD");
+const formatMoney=(amount:number|null|undefined,currency:string)=>amount===null||amount===undefined?"À définir":new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2}).format(Number(amount))+" "+(currency==="CDF"?"FC":"USD");
 
 export default function PlatformPage(){
  const [ok,setOk]=useState(false),[loading,setLoading]=useState(true),[schools,setSchools]=useState<School[]>([]),[licenses,setLicenses]=useState<Record<string,License>>({});
